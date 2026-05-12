@@ -1,0 +1,1 @@
+C:\Users\Hamza\AppData\Local\Python\pythoncore-3.14-64\python.exe -m streamlit run c:/Users/Hamza/Desktop/Tickets/flight_tracker_app.py
