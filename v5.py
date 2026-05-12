@@ -3,6 +3,7 @@ import json
 import re
 import os
 from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 from typing import List, Dict, Tuple
 import pandas as pd
 import plotly.graph_objects as go
@@ -317,50 +318,77 @@ def apply_custom_css():
 def page_paste():
     st.subheader("📋 Import Flight Data")
     st.caption("Copy the entire Flight Manager page with your selected filters")
+
     raw = st.text_area("Paste data here", height=300)
 
     if st.button("Process & Save", type="primary"):
+
         if not raw.strip():
             st.error("No data pasted.")
             return
 
         progress_bar = st.progress(0, text="Parsing flight data...")
         status_text = st.empty()
+
         def update_progress(percent):
             progress_bar.progress(min(1.0, percent))
             status_text.text(f"Parsing... {int(percent*100)}%")
 
         with st.spinner("Parsing..."):
-            grid, col_dates, metadata = parse_grid(raw, progress_callback=update_progress)
+            grid, col_dates, metadata = parse_grid(
+                raw,
+                progress_callback=update_progress
+            )
+
         progress_bar.empty()
         status_text.empty()
 
         if not col_dates:
             st.error("Could not find date headers.")
             return
+
         total = sum(len(v) for v in grid.values())
+
         if total == 0:
             st.error("No flights found.")
             return
 
-        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M')
+        # Pakistan Time
+        pakistan_time = datetime.now(ZoneInfo("Asia/Karachi"))
+
+        timestamp = pakistan_time.strftime('%Y-%m-%d %H:%M')
+
         date_range = f"{col_dates[0]}→{col_dates[-1]}"
+
         if metadata.get("short_code") and metadata["short_code"] != "Unknown":
-            snapshot_name = f"{metadata['short_code']} {date_range} - {timestamp}"
+            snapshot_name = (
+                f"{metadata['short_code']} "
+                f"{date_range} - {timestamp}"
+            )
         else:
-            snapshot_name = f"{metadata['name']} {date_range} - {timestamp}"
+            snapshot_name = (
+                f"{metadata['name']} "
+                f"{date_range} - {timestamp}"
+            )
 
         record = {
-            "pasted_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "pasted_at": pakistan_time.strftime("%Y-%m-%d %H:%M:%S"),
             "snapshot_name": snapshot_name,
             "metadata": metadata,
             "col_dates": col_dates,
             "grid": grid,
         }
+
         db = load_db()
         db.append(record)
         save_db(db)
-        st.success(f"✅ Saved as **{snapshot_name}**\n\n{col_dates[0]} → {col_dates[-1]} | {total} flight-day entries")
+
+        st.success(
+            f"✅ Saved as **{snapshot_name}**\n\n"
+            f"{col_dates[0]} → {col_dates[-1]} | "
+            f"{total} flight-day entries"
+        )
+
         st.rerun()
 
 def page_snapshot():
