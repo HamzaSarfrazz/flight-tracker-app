@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from typing import List, Dict, Tuple
 import pandas as pd
 import plotly.graph_objects as go
+from supabase import create_client
 
 # ============================================================================
 # Constants
@@ -280,26 +281,46 @@ def parse_grid(raw_text: str, progress_callback=None) -> Tuple[Dict[str, List[Di
     return grid, col_dates, metadata
 
 # ============================================================================
-# Storage
+# Storage — Supabase (persists across Streamlit sleeps/restarts)
 # ============================================================================
+from supabase import create_client
+
+def _get_supabase():
+    url = st.secrets["SUPABASE_URL"]
+    key = st.secrets["SUPABASE_KEY"]
+    return create_client(url, key)
+
 @st.cache_data(ttl=5)
 def load_db() -> List[Dict]:
-    if not os.path.exists(DATA_FILE):
+    try:
+        sb = _get_supabase()
+        result = sb.table("snapshots").select("*").order("pasted_at").execute()
+        records = []
+        for row in result.data:
+            rec = json.loads(row["payload"])
+            rec["_id"] = row["id"]
+            if "snapshot_name" not in rec:
+                dates = rec.get("col_dates", [])
+                date_part = f"{dates[0]}→{dates[-1]}" if dates else "unknown"
+                meta_name = rec.get("metadata", {}).get("name", "Snapshot")
+                rec["snapshot_name"] = f"{meta_name} {date_part} - {rec.get('pasted_at', 'unknown')}"
+            records.append(rec)
+        return records
+    except Exception as e:
+        st.error(f"Failed to load from database: {e}")
         return []
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        records = json.load(f)
-    for rec in records:
-        if "snapshot_name" not in rec:
-            dates = rec.get("col_dates", [])
-            date_part = f"{dates[0]}→{dates[-1]}" if dates else "unknown"
-            meta_name = rec.get("metadata", {}).get("name", "Snapshot")
-            rec["snapshot_name"] = f"{meta_name} {date_part} - {rec.get('pasted_at', 'unknown')}"
-    return records
 
 def save_db(records: List[Dict]):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(records, f, indent=2)
-    st.cache_data.clear()
+    try:
+        sb = _get_supabase()
+        # Delete all and reinsert (simple approach for small datasets)
+        sb.table("snapshots").delete().neq("id", 0).execute()
+        for rec in records:
+            payload = {k: v for k, v in rec.items() if k != "_id"}
+            sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
+        st.cache_data.clear()
+    except Exception as e:
+        st.error(f"Failed to save to database: {e}")
 
 # ============================================================================
 # UI Pages (unchanged)
