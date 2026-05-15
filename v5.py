@@ -275,7 +275,7 @@ def save_db(records: List[Dict]):
         st.error(f"WRITE_FAULT: {e}")
 
 # ============================================================================
-# Light theme
+# AERO-X 2080 Theme
 # ============================================================================
 def apply_aero_theme():
     st.markdown("""
@@ -473,35 +473,93 @@ def apply_aero_theme():
         background: #f8fbff !important;
     }
 
+    .terminal-block {
+        background: white;
+        border: 1px solid var(--border);
+        border-radius: 18px;
+        padding: 22px;
+        line-height: 1.8;
+        font-size: 0.9rem;
+        box-shadow:
+            0 1px 2px rgba(0,0,0,0.04),
+            0 8px 24px rgba(15,23,42,0.04);
+    }
+
+    .terminal-block .ts {
+        color: var(--muted);
+        font-weight: 600;
+    }
+
+    .terminal-block .ok {
+        color: var(--green);
+        font-weight: 700;
+    }
+
+    .terminal-block .hi {
+        color: var(--primary);
+        font-weight: 700;
+    }
+
+    .terminal-block .wa {
+        color: var(--amber);
+        font-weight: 700;
+    }
+
+    .pill {
+        display: inline-block;
+        padding: 5px 12px;
+        border-radius: 999px;
+        font-size: 0.72rem;
+        font-weight: 700;
+    }
+
+    .pill-green {
+        background: var(--green-soft);
+        color: #166534;
+    }
+
+    .pill-red {
+        background: var(--red-soft);
+        color: #991b1b;
+    }
+
+    .pill-amber {
+        background: var(--amber-soft);
+        color: #92400e;
+    }
+
+    .pill-cyan {
+        background: var(--primary-soft);
+        color: var(--primary);
+    }
+
     hr {
         border-color: var(--border) !important;
     }
 
-    [data-testid="stDataFrame"] {
-        border: 1px solid var(--border) !important;
-        border-radius: 16px !important;
-        overflow: hidden !important;
-        background: white !important;
-    }
-
-    [data-testid="stDataFrame"] thead tr th {
-        background: #f8fafc !important;
-        color: var(--muted) !important;
-        font-size: 0.75rem !important;
-        font-weight: 700 !important;
-    }
-
-    [data-testid="stDataFrame"] tbody tr td {
-        background: white !important;
-        color: var(--text) !important;
-        font-size: 0.85rem !important;
-    }
-
-    [data-testid="stDataFrame"] tbody tr:hover td {
-        background: #f8fbff !important;
+    .footer-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid var(--border);
+        padding: 8px 20px;
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.7rem;
+        color: var(--muted);
+        z-index: 999;
     }
 
     </style>
+
+    <div class="footer-bar">
+        <span>AirBlue_X // AIRBLUE ANALYTICS ENGINE</span>
+        <span>Asia/Karachi • PKT • HAMZA 6.0</span>
+    </div>
+
     """, unsafe_allow_html=True)
 
 # ============================================================================
@@ -560,161 +618,53 @@ PLOTLY_LAYOUT = dict(
 def ts_now():
     return datetime.now(ZoneInfo("Asia/Karachi")).strftime("%Y-%m-%d %H:%M:%S PKT")
 
-def fmt_day(iso: str) -> str:
-    try:
-        return date.fromisoformat(iso).strftime("%a %d %b")
-    except ValueError:
-        return iso
-
-def flight_label(route: str, flt: str) -> str:
-    return f"PA {flt} · {route}"
-
-def collect_flights(grid: Dict, dates: List[str]) -> List[Tuple[str, str]]:
-    keys, seen = [], set()
-    for d in dates:
-        for f in grid.get(d, []):
-            k = (f["route"], f["flt"])
-            if k not in seen:
-                seen.add(k)
-                keys.append(k)
-    return keys
-
-def snapshot_cell(entry) -> str:
-    if not entry or entry.get("ticketed") is None:
-        return "—"
-    if entry.get("departed"):
-        return "Departed"
-    t = entry["ticketed"]
-    c = entry.get("capacity") or 0
-    if c:
-        return f"{t}/{c} ({t / c * 100:.0f}%)"
-    return str(t)
-
-def _style_delta(val):
-    if val is None or val == "" or val == "—" or val == "Dep":
-        return ""
-    if isinstance(val, (int, float)) and not pd.isna(val):
-        if val > 0:
-            return "background-color:#dcfce7;color:#166534;font-weight:600"
-        if val < 0:
-            return "background-color:#fee2e2;color:#991b1b;font-weight:600"
-        return "background-color:#f1f5f9;color:#64748b;font-weight:500"
-    return ""
-
-def _fmt_delta(val):
-    if val is None or (isinstance(val, float) and pd.isna(val)):
-        return "—"
-    if val == "Dep":
-        return "Departed"
-    if isinstance(val, (int, float)):
-        return f"{int(val):+d}" if val != 0 else "0"
-    return str(val)
-
-def _style_snapshot_cell(val):
-    if not isinstance(val, str) or "(" not in val:
-        return ""
-    try:
-        pct = float(val.split("(")[-1].rstrip("%)"))
-        if pct >= 91:
-            return "background-color:#dcfce7;color:#166534"
-        if pct >= 76:
-            return "background-color:#fef3c7;color:#92400e"
-        return "background-color:#fee2e2;color:#991b1b"
-    except ValueError:
-        return ""
-
-def show_delta_table(df: pd.DataFrame, day_cols: List[str]):
-    styled = (
-        df.style
-        .map(_style_delta, subset=day_cols + ["Net change"])
-        .format(_fmt_delta, subset=day_cols + ["Net change"])
-    )
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=min(520, 44 + len(df) * 35))
-
-def show_snapshot_table(df: pd.DataFrame, day_cols: List[str]):
-    styled = df.style.map(_style_snapshot_cell, subset=day_cols)
-    st.dataframe(styled, use_container_width=True, hide_index=True, height=min(520, 44 + len(df) * 35))
-
-def build_compare_table(prev_grid, curr_grid, day_specs: List[Tuple[str, str, str]]):
-    day_cols = [label for label, _, _ in day_specs]
-    flight_keys = set()
-    for _, _, cd in day_specs:
-        for f in curr_grid.get(cd, []):
-            flight_keys.add((f["route"], f["flt"]))
-
-    rows, grand_total = [], 0
-    for route, flt in sorted(flight_keys):
-        row = {"Flight": flight_label(route, flt)}
-        ftot = 0
-        for col, pd, cd in day_specs:
-            pe = next(
-                (f for f in prev_grid.get(pd, []) if f["route"] == route and f["flt"] == flt),
-                None,
-            )
-            ce = next(
-                (f for f in curr_grid.get(cd, []) if f["route"] == route and f["flt"] == flt),
-                None,
-            )
-            if ce and ce.get("departed"):
-                row[col] = "Dep"
-                continue
-            if not pe and not ce:
-                row[col] = None
-                continue
-            pt = pe["ticketed"] if pe and pe.get("ticketed") else 0
-            ct = ce["ticketed"] if ce and ce.get("ticketed") else 0
-            diff = ct - pt
-            ftot += diff
-            row[col] = diff
-        row["Net change"] = ftot
-        grand_total += ftot
-        rows.append(row)
-
-    rows.append({"Flight": "All flights", **{c: "" for c in day_cols}, "Net change": grand_total})
-    return pd.DataFrame(rows), day_cols, grand_total
-
 # ============================================================================
 # UI PAGES
 # ============================================================================
 
 def page_import():
-    st.markdown("### Import snapshot")
-    st.caption("Paste the full Flight Manager export below, then import to save it.")
+    st.markdown('<div class="aero-label">// Data Link Initiate</div>', unsafe_allow_html=True)
+    st.markdown("**Paste the full Flight Manager page output** into the buffer below and click SYNC.")
 
     raw = st.text_area(
-        "Flight Manager data",
-        height=280,
-        placeholder="Paste raw flight data here…",
-        label_visibility="collapsed",
+        "DATA_STREAM_BUFFER",
+        height=300,
+        placeholder="Paste raw flight data here...",
+        label_visibility="collapsed"
     )
 
-    sync = st.button("Import snapshot", type="primary")
+    col_btn, col_info = st.columns([1, 3])
+    with col_btn:
+        sync = st.button("⚡ SYNC_DATA_STREAM", type="primary", use_container_width=True)
 
     if sync:
         if not raw.strip():
-            st.error("Paste flight data before importing.")
+            st.error("EMPTY_BUFFER — no data to process.")
             return
 
-        prog = st.progress(0, text="Parsing…")
+        prog  = st.progress(0, text="Initialising parser...")
+        dummy = st.empty()
 
         def update_prog(p):
-            prog.progress(min(1.0, p), text=f"Parsing… {int(p * 100)}%")
+            prog.progress(min(1.0, p), text=f"Parsing... {int(p*100)}%")
 
-        grid, col_dates, metadata = parse_grid(raw, progress_callback=update_prog)
-        prog.empty()
+        with st.spinner(""):
+            grid, col_dates, metadata = parse_grid(raw, progress_callback=update_prog)
+
+        prog.empty(); dummy.empty()
 
         if not col_dates:
-            st.error("Could not find date headers in the pasted data.")
+            st.error("PARSE_FAIL — no date headers detected in stream.")
             return
 
         total = sum(len(v) for v in grid.values())
         if total == 0:
-            st.error("No flight rows were found in the pasted data.")
+            st.error("PARSE_FAIL — no flight entries found.")
             return
 
-        pkt = datetime.now(ZoneInfo("Asia/Karachi"))
-        timestamp = pkt.strftime("%Y-%m-%d %H:%M")
-        date_range = f"{col_dates[0]} → {col_dates[-1]}"
+        pkt        = datetime.now(ZoneInfo("Asia/Karachi"))
+        timestamp  = pkt.strftime("%Y-%m-%d %H:%M")
+        date_range = f"{col_dates[0]}→{col_dates[-1]}"
         sc         = metadata.get("short_code", "Unknown")
         snapshot_name = (
             f"{sc} {date_range} - {timestamp}"
@@ -733,193 +683,603 @@ def page_import():
         db.append(record)
         save_db(db)
 
-        st.success(
-            f"Saved **{snapshot_name}** — {total:,} flight-day rows, "
-            f"{metadata.get('type', 'unknown type')}."
-        )
+        st.markdown(f"""
+        <div class="terminal-block">
+            <span class="ts">[{ts_now()}]</span> <span class="ok">STREAM_SYNC_OK</span><br>
+            <span class="ts">SNAPSHOT_ID  :</span> <span class="hi">{snapshot_name}</span><br>
+            <span class="ts">DATE_RANGE   :</span> {date_range}<br>
+            <span class="ts">ENTRIES      :</span> <span class="hi">{total}</span> flight-day records<br>
+            <span class="ts">TYPE         :</span> {metadata.get('type','—')}
+        </div>
+        """, unsafe_allow_html=True)
         st.rerun()
 
 
 def page_snapshot():
     db = load_db()
     if not db:
-        st.info("No snapshots yet. Import data on the **Import** tab.")
+        st.info("No snapshots. Import data first.")
         return
 
-    st.markdown("### Snapshot")
-    opts = [r["snapshot_name"] for r in db]
-    sel_idx = st.selectbox(
-        "Snapshot",
-        range(len(db)),
-        format_func=lambda i: opts[i],
-        index=len(db) - 1,
-        label_visibility="collapsed",
-    )
-    snap = db[sel_idx]
-    grid = snap["grid"]
-    dates = snap["col_dates"]
-    day_cols = [fmt_day(d) for d in dates]
+    st.markdown('<div class="aero-label">// Snapshot Viewer</div>', unsafe_allow_html=True)
+    opts        = [f"[{i}] {r['snapshot_name']}" for i, r in enumerate(db)]
+    sel_idx     = st.selectbox("SELECT_SNAPSHOT", range(len(db)),
+                               format_func=lambda i: opts[i], index=len(db)-1,
+                               label_visibility="collapsed")
+    snap        = db[sel_idx]
+    grid        = snap["grid"]
+    dates       = snap["col_dates"]
 
     total_tix = sum(f["ticketed"] for d in dates for f in grid[d] if f.get("ticketed"))
     total_cap = sum(f["capacity"] for d in dates for f in grid[d] if f.get("capacity"))
-    lf = (total_tix / total_cap * 100) if total_cap else 0
+    lf        = (total_tix / total_cap * 100) if total_cap else 0
     total_rev = sum(f["revenue_k"] for d in dates for f in grid[d] if f.get("revenue_k"))
 
     c1, c2, c3, c4 = st.columns(4)
-    c1.metric("Date range", f"{fmt_day(dates[0])} → {fmt_day(dates[-1])}")
-    c2.metric("Tickets sold", f"{total_tix:,}")
-    c3.metric("Load factor", f"{lf:.1f}%")
-    c4.metric("Revenue", f"{total_rev:,}k")
+    c1.metric("DATE_RANGE",   f"{dates[0][5:]} → {dates[-1][5:]}")
+    c2.metric("TICKETS_SOLD", f"{total_tix:,}")
+    c3.metric("LOAD_FACTOR",  f"{lf:.1f}%")
+    c4.metric("REVENUE_K",    f"{total_rev:,}k")
 
-    st.caption(f"Imported {snap['pasted_at']} PKT · {snap['snapshot_name']}")
+    st.caption(f"Imported at {snap['pasted_at']} | {snap['snapshot_name']}")
+    st.divider()
+
+    # Build table
+    flight_keys = []
+    for d in dates:
+        for f in grid[d]:
+            key = (f["route"], f["flt"])
+            if key not in flight_keys:
+                flight_keys.append(key)
 
     rows = []
-    for route, flt in collect_flights(grid, dates):
-        row = {"Flight": flight_label(route, flt)}
-        for d, col in zip(dates, day_cols):
-            entry = next(
-                (f for f in grid[d] if f["route"] == route and f["flt"] == flt),
-                None,
-            )
-            row[col] = snapshot_cell(entry)
+    for route, flt in flight_keys:
+        row = {"FLIGHT": f"PA {flt} {route}"}
+        for d in dates:
+            entry = next((f for f in grid[d] if f["route"]==route and f["flt"]==flt), None)
+            if not entry or entry["ticketed"] is None:
+                row[d[5:]] = "—"
+            elif entry["departed"]:
+                row[d[5:]] = "✈ DEP"
+            else:
+                cap = entry["capacity"] or 1
+                pct = entry["ticketed"] / cap * 100
+                pill = "green" if pct >= 91 else "amber" if pct >= 76 else "red"
+                row[d[5:]] = f'<span class="pill pill-{pill}">{entry["ticketed"]}/{cap} {pct:.0f}%</span>'
         rows.append(row)
 
-    st.markdown("**Tickets sold per flight** — sold/capacity (load %). Departed flights are marked.")
-    show_snapshot_table(pd.DataFrame(rows), day_cols)
+    df = pd.DataFrame(rows)
+    st.markdown(
+        '<div style="overflow-x:auto">' + df.to_html(escape=False, index=False) + '</div>',
+        unsafe_allow_html=True
+    )
 
-    st.markdown("### Daily totals")
-    day_totals = [sum(f["ticketed"] for f in grid[d] if f.get("ticketed")) for d in dates]
-    day_caps = [sum(f["capacity"] for f in grid[d] if f.get("capacity")) for d in dates]
-    lfs = [t / c * 100 if c else 0 for t, c in zip(day_totals, day_caps)]
+    # Daily totals bar chart
+    st.divider()
+    st.markdown('<div class="aero-label">// Daily Totals</div>', unsafe_allow_html=True)
+    day_totals  = [sum(f["ticketed"] for f in grid[d] if f.get("ticketed")) for d in dates]
+    day_caps    = [sum(f["capacity"] for f in grid[d] if f.get("capacity")) for d in dates]
+    short_dates = [d[5:] for d in dates]
+    lfs         = [t/c*100 if c else 0 for t, c in zip(day_totals, day_caps)]
 
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        x=day_cols,
-        y=day_totals,
-        name="Tickets",
-        marker_color="#2563eb",
-        marker_line_width=0,
+        x=short_dates, y=day_totals, name="Tickets",
+        marker_color="#00e5ff", marker_line_width=0,
+        opacity=0.85
     ))
     fig.add_trace(go.Scatter(
-        x=day_cols,
-        y=lfs,
-        name="Load %",
-        yaxis="y2",
-        mode="lines+markers",
+        x=short_dates, y=lfs, name="Load %",
+        yaxis="y2", mode="lines+markers",
         line=dict(color="#f59e0b", width=2),
-        marker=dict(size=6, color="#f59e0b"),
+        marker=dict(size=5, color="#f59e0b")
     ))
     fig.update_layout(
         **PLOTLY_LAYOUT,
-        title="Daily tickets and load factor",
-        yaxis2=dict(
-            title="Load %",
-            overlaying="y",
-            side="right",
-            range=[0, 110],
-            gridcolor="rgba(0,0,0,0)",
-        ),
+        title="Daily Tickets & Load Factor",
+        yaxis2=dict(title="Load %", overlaying="y", side="right",
+                    range=[0, 110], gridcolor="rgba(0,0,0,0)"),
+        barmode="group"
     )
     st.plotly_chart(fig, use_container_width=True)
 
 
 def page_compare():
     db = load_db()
+
     if len(db) < 2:
-        st.info("Import at least two snapshots to compare.")
+        st.info("Need at least 2 snapshots to compare.")
         return
 
-    st.markdown("### Compare snapshots")
-    opts = [r["snapshot_name"] for r in db]
-    c1, c2 = st.columns(2)
-    with c1:
-        st.caption("Baseline (older)")
-        idx_a = st.selectbox(
-            "Baseline",
-            range(len(db)),
-            format_func=lambda i: opts[i],
-            index=max(0, len(db) - 2),
-            label_visibility="collapsed",
-            key="cmp_baseline",
+    st.markdown(
+        '<div class="aero-label">// Comparison Matrix</div>',
+        unsafe_allow_html=True
+    )
+
+    opts = [f"[{i}] {r['snapshot_name']}" for i, r in enumerate(db)]
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(
+            '<div class="aero-label">BASELINE_SNAPSHOT</div>',
+            unsafe_allow_html=True
         )
-    with c2:
-        st.caption("Current (newer)")
-        idx_b = st.selectbox(
-            "Current",
+
+        idx_a = st.selectbox(
+            "A",
             range(len(db)),
             format_func=lambda i: opts[i],
-            index=len(db) - 1,
-            label_visibility="collapsed",
-            key="cmp_current",
+            index=max(0, len(db)-2),
+            label_visibility="collapsed"
+        )
+
+    with col2:
+        st.markdown(
+            '<div class="aero-label">CURRENT_SNAPSHOT</div>',
+            unsafe_allow_html=True
+        )
+
+        idx_b = st.selectbox(
+            "B",
+            range(len(db)),
+            format_func=lambda i: opts[i],
+            index=len(db)-1,
+            label_visibility="collapsed"
         )
 
     if idx_a == idx_b:
-        st.warning("Choose two different snapshots.")
+        st.warning("SELECT_DISTINCT_SNAPSHOTS — choose two different snapshots.")
         return
 
-    prev, curr = db[idx_a], db[idx_b]
-    mode = st.radio(
-        "Align by",
-        ["Same calendar dates", "Same day position (WoW)"],
-        horizontal=True,
-    )
-    wow_mode = mode.startswith("Same day")
+    prev = db[idx_a]
+    curr = db[idx_b]
 
-    if not wow_mode:
-        overlap = sorted(set(prev["col_dates"]) & set(curr["col_dates"]))
+    mode = st.radio(
+        "ALIGN_MODE",
+        ["By Date (overlapping)", "By Day Offset (WoW)"],
+        horizontal=True
+    )
+
+    # =====================================================================
+    # DATAFRAME STYLE
+    # =====================================================================
+
+    st.markdown("""
+    <style>
+
+    /* dataframe wrapper */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #1e293b !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        background: #0b1220 !important;
+        box-shadow:
+            0 4px 18px rgba(0,0,0,0.25),
+            0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    /* toolbar */
+    [data-testid="stDataFrameToolbar"] {
+        background: #0f172a !important;
+        border-bottom: 1px solid #1e293b !important;
+    }
+
+    /* header */
+    [data-testid="stDataFrame"] thead tr th {
+        background: #111827 !important;
+        color: #94a3b8 !important;
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        border-bottom: 1px solid #1e293b !important;
+        letter-spacing: 0.05em;
+    }
+
+    /* body cells */
+    [data-testid="stDataFrame"] tbody tr td {
+        background: #0b1220 !important;
+        color: #e2e8f0 !important;
+        border-bottom: 1px solid #162033 !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+    }
+
+    /* hover */
+    [data-testid="stDataFrame"] tbody tr:hover td {
+        background: #111827 !important;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+        height: 10px;
+        width: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 999px;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    # =====================================================================
+    # OVERLAPPING DATE MODE
+    # =====================================================================
+
+    if mode.startswith("By Date"):
+
+        overlap = sorted(
+            set(prev["col_dates"]) &
+            set(curr["col_dates"])
+        )
+
         if not overlap:
-            st.error("No overlapping dates. Use day-position mode instead.")
+            st.error(
+                "No overlapping dates — use Day Offset mode for WoW comparison."
+            )
             return
-        day_specs = [(fmt_day(d), d, d) for d in overlap]
+
+        prev_totals = [
+            sum(
+                f["ticketed"]
+                for f in prev["grid"].get(d, [])
+                if f.get("ticketed")
+            )
+            for d in overlap
+        ]
+
+        curr_totals = [
+            sum(
+                f["ticketed"]
+                for f in curr["grid"].get(d, [])
+                if f.get("ticketed")
+            )
+            for d in overlap
+        ]
+
+        fig = go.Figure()
+
+        fig.add_trace(go.Scatter(
+            x=overlap,
+            y=prev_totals,
+            name="Baseline",
+            line=dict(
+                color="#64748b",
+                width=2,
+                dash="dot"
+            ),
+            marker=dict(size=4)
+        ))
+
+        fig.add_trace(go.Scatter(
+            x=overlap,
+            y=curr_totals,
+            name="Current",
+            line=dict(
+                color="#00e5ff",
+                width=3
+            ),
+            marker=dict(size=6)
+        ))
+
+        fig.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Daily Tickets — Overlap Period"
+        )
+
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # ================================================================
+        # TABLE BUILD
+        # ================================================================
+
+        flight_keys = set()
+
+        for d in overlap:
+            for f in curr["grid"].get(d, []):
+                flight_keys.add((f["route"], f["flt"]))
+
+        rows = []
+        grand_total = 0
+
+        for route, flt in sorted(flight_keys):
+
+            row = {
+                "FLIGHT": f"PA {flt} {route}"
+            }
+
+            ftot = 0
+
+            for d in overlap:
+
+                pe = next(
+                    (
+                        f for f in prev["grid"].get(d, [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
+                    None
+                )
+
+                ce = next(
+                    (
+                        f for f in curr["grid"].get(d, [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
+                    None
+                )
+
+                if not ce or ce.get("departed"):
+                    row[d[5:]] = "✈ DEP"
+                    continue
+
+                pt = pe["ticketed"] if pe and pe["ticketed"] else 0
+                ct = ce["ticketed"] if ce and ce["ticketed"] else 0
+
+                diff = ct - pt
+                ftot += diff
+
+                if diff > 0:
+                    icon = "▲"
+                elif diff < 0:
+                    icon = "▼"
+                else:
+                    icon = "◆"
+
+                row[d[5:]] = f"{icon} {pt} → {ct} ({diff:+d})"
+
+            grand_total += ftot
+
+            if ftot > 0:
+                total_icon = "▲"
+            elif ftot < 0:
+                total_icon = "▼"
+            else:
+                total_icon = "◆"
+
+            row["TOTAL_Δ"] = f"{total_icon} {ftot:+d}"
+
+            rows.append(row)
+
+        rows.append({
+            "FLIGHT": "GRAND_TOTAL",
+            **{d[5:]: "" for d in overlap},
+            "TOTAL_Δ": f"{'▲' if grand_total > 0 else '▼'} {grand_total:+d}"
+        })
+
+        compare_df = pd.DataFrame(rows)
+
+        def color_compare(val):
+
+            if isinstance(val, str):
+
+                if "▲" in val:
+                    return (
+                        "background-color: rgba(16,185,129,0.12);"
+                        "color: #4ade80;"
+                        "font-weight: 700;"
+                    )
+
+                elif "▼" in val:
+                    return (
+                        "background-color: rgba(239,68,68,0.12);"
+                        "color: #f87171;"
+                        "font-weight: 700;"
+                    )
+
+                elif "◆" in val:
+                    return (
+                        "background-color: rgba(59,130,246,0.10);"
+                        "color: #38bdf8;"
+                        "font-weight: 700;"
+                    )
+
+            return ""
+
+        styled_df = compare_df.style.map(color_compare)
+
+        st.dataframe(
+            styled_df,
+            use_container_width=True,
+            hide_index=True,
+            height=620
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+            "NET_TICKETS_SOLD",
+            f"{grand_total:+d}"
+        )
+
+        c2.metric(
+            "BASELINE_TOTAL",
+            f"{sum(prev_totals):,}"
+        )
+
+        c3.metric(
+            "CURRENT_TOTAL",
+            f"{sum(curr_totals):,}"
+        )
+
+    # =====================================================================
+    # WOW MODE
+    # =====================================================================
+
     else:
-        n_days = min(len(prev["col_dates"]), len(curr["col_dates"]))
-        day_specs = [
-            (
-                f"{fmt_day(curr['col_dates'][i])} (day {i + 1})",
-                prev["col_dates"][i],
-                curr["col_dates"][i],
+
+        n_days = min(
+            len(prev["col_dates"]),
+            len(curr["col_dates"])
+        )
+
+        prev_dates = prev["col_dates"][:n_days]
+        curr_dates = curr["col_dates"][:n_days]
+
+        labels = []
+
+        dow_names = [
+            'MON', 'TUE', 'WED',
+            'THU', 'FRI', 'SAT', 'SUN'
+        ]
+
+        for i in range(n_days):
+
+            try:
+                d = date.fromisoformat(curr_dates[i])
+                dow = dow_names[d.weekday()]
+                labels.append(f"D{i+1} {dow}")
+
+            except:
+                labels.append(f"D{i+1}")
+
+        prev_totals = [
+            sum(
+                f["ticketed"]
+                for f in prev["grid"].get(prev_dates[i], [])
+                if f.get("ticketed")
             )
             for i in range(n_days)
         ]
 
-    chart_x = [label for label, _, _ in day_specs]
-    prev_totals = [
-        sum(f["ticketed"] for f in prev["grid"].get(pd, []) if f.get("ticketed"))
-        for _, pd, _ in day_specs
-    ]
-    curr_totals = [
-        sum(f["ticketed"] for f in curr["grid"].get(cd, []) if f.get("ticketed"))
-        for _, _, cd in day_specs
-    ]
+        curr_totals = [
+            sum(
+                f["ticketed"]
+                for f in curr["grid"].get(curr_dates[i], [])
+                if f.get("ticketed")
+            )
+            for i in range(n_days)
+        ]
 
-    fig = go.Figure()
-    if wow_mode:
-        fig.add_trace(go.Bar(name="Baseline", x=chart_x, y=prev_totals, marker_color="#94a3b8"))
-        fig.add_trace(go.Bar(name="Current", x=chart_x, y=curr_totals, marker_color="#2563eb"))
-        fig.update_layout(**PLOTLY_LAYOUT, title="Daily tickets (by day position)", barmode="group")
-    else:
-        fig.add_trace(go.Scatter(
-            x=chart_x, y=prev_totals, name="Baseline",
-            line=dict(color="#94a3b8", width=2, dash="dot"), marker=dict(size=5),
+        fig = go.Figure()
+
+        fig.add_trace(go.Bar(
+            name="Baseline",
+            x=labels,
+            y=prev_totals,
+            marker_color="#475569",
+            opacity=0.7
         ))
-        fig.add_trace(go.Scatter(
-            x=chart_x, y=curr_totals, name="Current",
-            line=dict(color="#2563eb", width=2), marker=dict(size=6),
+
+        fig.add_trace(go.Bar(
+            name="Current",
+            x=labels,
+            y=curr_totals,
+            marker_color="#00e5ff",
+            opacity=0.9
         ))
-        fig.update_layout(**PLOTLY_LAYOUT, title="Daily tickets (overlapping dates)")
-    st.plotly_chart(fig, use_container_width=True)
 
-    compare_df, day_cols, grand_total = build_compare_table(prev["grid"], curr["grid"], day_specs)
-    st.markdown(
-        "**Ticket change per flight** — numbers are current minus baseline "
-        "(e.g. +5 means 5 more tickets sold)."
-    )
-    show_delta_table(compare_df, day_cols)
+        fig.update_layout(
+            **PLOTLY_LAYOUT,
+            title="WoW — Daily Tickets",
+            barmode="group"
+        )
 
-    m1, m2, m3 = st.columns(3)
-    m1.metric("Net change", f"{grand_total:+d}")
-    m2.metric("Baseline tickets", f"{sum(prev_totals):,}")
-    m3.metric("Current tickets", f"{sum(curr_totals):,}")
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        all_flights = set()
+
+        for i in range(n_days):
+
+            for f in prev["grid"].get(prev_dates[i], []):
+                all_flights.add((f["route"], f["flt"]))
+
+            for f in curr["grid"].get(curr_dates[i], []):
+                all_flights.add((f["route"], f["flt"]))
+
+        rows = []
+
+        grand_total = 0
+
+        for route, flt in sorted(all_flights):
+
+            row = {
+                "FLIGHT": f"PA {flt} {route}"
+            }
+
+            ftot = 0
+
+            for i in range(n_days):
+
+                pe = next(
+                    (
+                        f for f in prev["grid"].get(prev_dates[i], [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
+                    None
+                )
+
+                ce = next(
+                    (
+                        f for f in curr["grid"].get(curr_dates[i], [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
+                    None
+                )
+
+                if not pe and not ce:
+                    row[labels[i]] = "—"
+                    continue
+
+                if ce and ce.get("departed"):
+                    row[labels[i]] = "✈ DEP"
+                    continue
+
+                pt = pe["ticketed"] if pe and pe["ticketed"] else 0
+                ct = ce["ticketed"] if ce and ce["ticketed"] else 0
+
+                diff = ct - pt
+                ftot += diff
+
+                if diff > 0:
+                    icon = "▲"
+                elif diff < 0:
+                    icon = "▼"
+                else:
+                    icon = "◆"
+
+                row[labels[i]] = f"{icon} {pt} → {ct} ({diff:+d})"
+
+            grand_total += ftot
+
+            if ftot > 0:
+                total_icon = "▲"
+            elif ftot < 0:
+                total_icon = "▼"
+            else:
+                total_icon = "◆"
+
+            row["TOTAL_Δ"] = f"{total_icon} {ftot:+d}"
+
+            rows.append(row)
+
+        rows.append({
+            "FLIGHT": "GRAND_TOTAL",
+            **{l: "" for l in labels},
+            "TOTAL_Δ": f"{'▲' if grand_total > 0 else '▼'} {grand_total:+d}"
+        })
+
+        compare_df = pd.DataFrame(rows)
+
+        styled_df = compare_df.style.map(color_compare)
+
+        st.dataframe(
+            styled_df,
+            use_container_width=True,
+            hide_index=True,
+            height=620
+        )
+
+        st.metric(
+            "NET_TICKETS_WoW",
+            f"{grand_total:+d}"
+        )
 
 
 def page_booking_curve():
@@ -928,8 +1288,7 @@ def page_booking_curve():
         st.info("No snapshots yet.")
         return
 
-    st.markdown("### Booking curve")
-    st.caption("How ticket sales for one flight built up across imports.")
+    st.markdown('<div class="aero-label">// Booking Curve Analysis</div>', unsafe_allow_html=True)
 
     flights = set()
     for snap in db:
@@ -941,18 +1300,13 @@ def page_booking_curve():
         st.warning("No flights found in any snapshot.")
         return
 
-    flight_list = sorted([flight_label(route, flt) for route, flt in flights])
-    selected_flight = st.selectbox("Flight", flight_list, label_visibility="collapsed")
-    flt_part, route = selected_flight.split(" · ", 1)
-    flt = flt_part.split()[1]
+    flight_list     = sorted([f"PA {flt} {route}" for route, flt in flights])
+    selected_flight = st.selectbox("SELECT_FLIGHT", flight_list, label_visibility="collapsed")
+    parts           = selected_flight.split()
+    flt, route      = parts[1], parts[2]
 
     dep_dates = sorted(set(d for snap in db for d in snap["col_dates"]))
-    dep_date = st.selectbox(
-        "Departure date",
-        dep_dates,
-        format_func=fmt_day,
-        label_visibility="collapsed",
-    )
+    dep_date  = st.selectbox("DEPARTURE_DATE", dep_dates, label_visibility="collapsed")
 
     timestamps, tickets, capacities = [], [], []
     for snap in db:
@@ -980,9 +1334,10 @@ def page_booking_curve():
     fig.add_trace(go.Scatter(
         x=df["Snapshot"], y=df["Tickets"],
         mode="lines+markers", name="Tickets",
-        line=dict(color="#2563eb", width=2),
-        marker=dict(size=6, color="#2563eb"),
-        fill="tozeroy", fillcolor="rgba(37,99,235,0.08)",
+        line=dict(color="#00e5ff", width=2),
+        marker=dict(size=6, color="#00e5ff",
+                    line=dict(width=1, color="#04080f")),
+        fill="tozeroy", fillcolor="rgba(0,229,255,0.05)"
     ))
 
     if capacity:
@@ -1005,81 +1360,77 @@ def page_booking_curve():
 
     fig.update_layout(
         **PLOTLY_LAYOUT,
-        title=f"{selected_flight} · {fmt_day(dep_date)}",
-        xaxis_title="Imported at (PKT)",
-        yaxis_title="Tickets sold",
+        title=f"Booking Curve — {selected_flight} // {dep_date}",
+        xaxis_title="Snapshot Time (PKT)",
+        yaxis_title="Tickets Sold",
     )
     st.plotly_chart(fig, use_container_width=True)
 
+    # Trend stats
     if len(tickets) >= 2:
-        delta = tickets[-1] - tickets[-2]
+        delta   = tickets[-1] - tickets[-2]
         total_g = tickets[-1] - tickets[0]
         c1, c2, c3 = st.columns(3)
-        c1.metric("Latest tickets", f"{tickets[-1]:,}")
-        c2.metric("Since last import", f"{delta:+d}")
-        c3.metric("Since first import", f"{total_g:+d}")
+        c1.metric("LATEST_TICKETS",  f"{tickets[-1]:,}")
+        c2.metric("LAST_SNAPSHOT_Δ", f"{delta:+d}")
+        c3.metric("TOTAL_GROWTH",    f"{total_g:+d}")
 
 
 def page_history():
     db = load_db()
     if not db:
-        st.info("No snapshots saved yet.")
+        st.info("No history.")
         return
 
-    st.markdown("### History")
+    st.markdown('<div class="aero-label">// Snapshot Registry</div>', unsafe_allow_html=True)
+
     history = []
     for i, rec in enumerate(reversed(db)):
-        dates = rec["col_dates"]
-        total_tix = sum(
-            f["ticketed"] for d in dates for f in rec["grid"].get(d, []) if f.get("ticketed")
-        )
-        total_cap = sum(
-            f["capacity"] for d in dates for f in rec["grid"].get(d, []) if f.get("capacity")
-        )
-        lf = f"{total_tix / total_cap * 100:.1f}%" if total_cap else "—"
+        total_tix = sum(f["ticketed"] for d in rec["col_dates"] for f in rec["grid"].get(d, []) if f.get("ticketed"))
+        total_cap = sum(f["capacity"] for d in rec["col_dates"] for f in rec["grid"].get(d, []) if f.get("capacity"))
+        lf        = f"{total_tix/total_cap*100:.1f}%" if total_cap else "—"
         history.append({
-            "#": len(db) - i,
-            "Name": rec["snapshot_name"],
-            "Imported": rec["pasted_at"],
-            "Dates": f"{fmt_day(dates[0])} → {fmt_day(dates[-1])}",
-            "Rows": sum(len(v) for v in rec["grid"].values()),
-            "Tickets": total_tix,
-            "Load %": lf,
+            "IDX":           len(db)-i,
+            "SNAPSHOT_NAME": rec["snapshot_name"],
+            "IMPORTED_PKT":  rec["pasted_at"],
+            "DATE_RANGE":    f"{rec['col_dates'][0]}→{rec['col_dates'][-1]}",
+            "FLIGHTS":       sum(len(v) for v in rec["grid"].values()),
+            "TICKETS":       f"{total_tix:,}",
+            "LOAD_FACTOR":   lf,
         })
     st.dataframe(pd.DataFrame(history), use_container_width=True, hide_index=True)
 
-    st.markdown("### Manage data")
+    st.divider()
+    st.markdown('<div class="aero-label">// Danger Zone</div>', unsafe_allow_html=True)
     c1, c2 = st.columns(2)
     with c1:
-        if st.button("Delete latest snapshot", use_container_width=True):
+        if st.button("🗑 DELETE_LATEST", use_container_width=True):
             st.session_state["confirm_delete"] = True
     with c2:
-        if st.button("Delete all snapshots", use_container_width=True):
+        if st.button("⚠️ PURGE_ALL_RECORDS", use_container_width=True):
             st.session_state["confirm_clear"] = True
 
     if st.session_state.get("confirm_delete"):
-        st.warning("Delete the most recent snapshot?")
-        if st.button("Yes, delete latest"):
-            db.pop()
-            save_db(db)
+        st.warning("Confirm deletion of the most recent snapshot?")
+        if st.button("✅ CONFIRM_DELETE"):
+            db.pop(); save_db(db)
             st.session_state["confirm_delete"] = False
             st.rerun()
 
     if st.session_state.get("confirm_clear"):
-        st.error("Delete every snapshot? This cannot be undone.")
-        if st.button("Yes, delete all"):
+        st.error("IRREVERSIBLE — delete ALL snapshots?")
+        if st.button("✅ CONFIRM_PURGE"):
             save_db([])
             st.session_state["confirm_clear"] = False
             st.rerun()
 
 
-def page_overview():
+def page_nexus():
+    """System status / dashboard page."""
     db = load_db()
-    if not db:
-        st.info("Import a snapshot to see your dashboard.")
-        return
 
-    total_tix = 0
+    total_snaps = len(db)
+    total_tix   = 0
     total_routes = set()
     for snap in db:
         for d in snap.get("col_dates", []):
@@ -1088,83 +1439,116 @@ def page_overview():
                     total_tix += f["ticketed"]
                 total_routes.add((f["route"], f["flt"]))
 
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Snapshots", len(db))
-    c2.metric("Tickets (all imports)", f"{total_tix:,}")
-    c3.metric("Unique flights", len(total_routes))
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("SNAPSHOTS_LOADED", f"{total_snaps}")
+    c2.metric("TOTAL_TICKETS",    f"{total_tix:,}")
+    c3.metric("UNIQUE_FLIGHTS",   f"{len(total_routes)}")
+    c4.metric("SYSTEM_STATUS",    "NOMINAL")
 
-    snap_names = [
-        s["snapshot_name"][:48] + "…" if len(s["snapshot_name"]) > 48 else s["snapshot_name"]
-        for s in db
-    ]
-    snap_tickets = [
-        sum(f["ticketed"] for d in s["col_dates"] for f in s["grid"].get(d, []) if f.get("ticketed"))
-        for s in db
-    ]
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=list(range(1, len(db) + 1)),
-        y=snap_tickets,
-        marker_color="#2563eb",
-        hovertext=snap_names,
-        hovertemplate="%{hovertext}<br>%{y:,} tickets<extra></extra>",
-    ))
-    fig.update_layout(
-        **PLOTLY_LAYOUT,
-        title="Total tickets per import",
-        xaxis_title="Import #",
-        yaxis_title="Tickets",
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    st.caption(f"Latest: **{db[-1]['snapshot_name']}** · imported {db[-1]['pasted_at']} PKT")
+    st.markdown(f"""
+    <div class="terminal-block" style="margin-top:24px">
+        <span class="ts">[BOOT]</span>  AERO_X ENGINE ONLINE<br>
+        <span class="ts">[INIT]</span>  SUPABASE_LINK........<span class="ok">ESTABLISHED</span><br>
+        <span class="ts">[INIT]</span>  PARSER_CORE...........<span class="ok">READY</span><br>
+        <span class="ts">[DATA]</span>  SNAPSHOTS_INDEXED.....<span class="hi">{total_snaps}</span><br>
+        <span class="ts">[DATA]</span>  TOTAL_TICKETS.........<span class="hi">{total_tix:,}</span><br>
+        <span class="ts">[DATA]</span>  UNIQUE_ROUTES.........<span class="hi">{len(total_routes)}</span><br>
+        <span class="ts">[SYS ]</span>  TIMESTAMP.............<span class="wa">{ts_now()}</span><br>
+        <span class="ts">[SYS ]</span>  TZ....................<span class="hi">Asia/Karachi (PKT, UTC+5)</span><br>
+        <span class="ts">[SYS ]</span>  BUILD.................<span class="ok">AERO_X_v6.0_2080</span>
+    </div>
+    """, unsafe_allow_html=True)
+
+    if db:
+        # Trend chart across all snapshots
+        st.divider()
+        st.markdown('<div class="aero-label">// Total Tickets per Snapshot</div>', unsafe_allow_html=True)
+        snap_names   = [s["snapshot_name"][:40] + "…" if len(s["snapshot_name"]) > 40
+                        else s["snapshot_name"] for s in db]
+        snap_tickets = [
+            sum(f["ticketed"] for d in s["col_dates"] for f in s["grid"].get(d, []) if f.get("ticketed"))
+            for s in db
+        ]
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=list(range(len(db))), y=snap_tickets,
+            marker_color="#00e5ff", marker_line_width=0, opacity=0.8,
+            hovertext=snap_names, hovertemplate="%{hovertext}<br>%{y:,} tickets<extra></extra>"
+        ))
+        fig.update_layout(
+            **PLOTLY_LAYOUT,
+            title="Tickets per Snapshot (chronological)",
+            xaxis_title="Snapshot Index",
+            yaxis_title="Total Tickets",
+        )
+        st.plotly_chart(fig, use_container_width=True)
 
 
 # ============================================================================
 # Main
 # ============================================================================
 st.set_page_config(
-    page_title="Airblue Flight Analytics",
+    page_title="AERO_X // Airblue Analytics",
     page_icon="✈",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="expanded"
 )
 apply_aero_theme()
 
+# Sidebar
 with st.sidebar:
-    st.markdown("### Airblue Analytics")
-    st.caption("Flight Manager snapshots")
+    st.markdown("""
+    <div style="padding:16px 0 24px 0; border-bottom:1px solid #1a2640; margin-bottom:20px">
+        <div style="font-family:'Syne',sans-serif; font-size:1.4rem; font-weight:800; color:#fff; letter-spacing:-0.03em">
+            AERO_<span style="color:#00e5ff">X</span>
+        </div>
+        <div style="font-size:0.6rem; color:#4a6080; letter-spacing:0.2em; margin-top:4px">
+            AIRBLUE ANALYTICS ENGINE
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
     db_sidebar = load_db()
     if db_sidebar:
-        st.metric("Snapshots", len(db_sidebar))
-        st.caption("Latest import")
-        st.write(db_sidebar[-1].get("snapshot_name", "—"))
-        st.caption(db_sidebar[-1].get("pasted_at", ""))
+        st.markdown(f"""
+        <div style="margin-bottom:20px">
+            <span class="status-dot"></span>
+            <span style="font-size:0.65rem; color:#4a6080; letter-spacing:0.1em; margin-left:8px">
+                {len(db_sidebar)} SNAPSHOT(S) LOADED
+            </span>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="stat-card">
+            <div class="aero-label">LATEST_SNAPSHOT</div>
+            <div style="font-size:0.72rem; color:#c8d8e8; margin-top:4px; word-break:break-all">
+                {db_sidebar[-1].get('snapshot_name','—')}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.info("No data yet. Use **Import** to add a snapshot.")
+        st.markdown('<div style="font-size:0.72rem; color:#4a6080">NO_DATA — import first</div>',
+                    unsafe_allow_html=True)
 
+    st.markdown('<div class="aero-label" style="margin-top:20px">BUILD_INFO</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:0.65rem; color:#2a3a50; line-height:1.8">v6.0 // 2080.6<br>ENCRYPT: AES-4096-Q<br>TZ: Asia/Karachi</div>',
+                unsafe_allow_html=True)
+
+# Header
 st.markdown("""
 <div class="aero-header">
-    <div class="aero-wordmark">Airblue <span>Analytics</span></div>
+    <div class="aero-wordmark">AERO_<span>X</span></div>
+    <div class="aero-badge">Airblue Analytics Engine</div>
+    <div class="aero-badge">BUILD 2080.6</div>
 </div>
 """, unsafe_allow_html=True)
 
-tab_overview, tab_import, tab_snapshot, tab_compare, tab_curve, tab_history = st.tabs([
-    "Overview",
-    "Import",
-    "Snapshot",
-    "Compare",
-    "Booking curve",
-    "History",
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    "◈ NEXUS", "⊕ IMPORT", "◉ SNAPSHOT", "⊗ COMPARE", "∿ BOOKING_CURVE", "⊘ HISTORY"
 ])
-with tab_overview:
-    page_overview()
-with tab_import:
-    page_import()
-with tab_snapshot:
-    page_snapshot()
-with tab_compare:
-    page_compare()
-with tab_curve:
-    page_booking_curve()
-with tab_history:
-    page_history()
+with tab1: page_nexus()
+with tab2: page_import()
+with tab3: page_snapshot()
+with tab4: page_compare()
+with tab5: page_booking_curve()
+with tab6: page_history()
