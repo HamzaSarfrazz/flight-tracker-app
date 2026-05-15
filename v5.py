@@ -556,8 +556,8 @@ def apply_aero_theme():
     </style>
 
     <div class="footer-bar">
-        <span>AERO_X // AIRBLUE ANALYTICS ENGINE</span>
-        <span>Asia/Karachi • PKT • BUILD 6.0</span>
+        <span>AirBlue_X // AIRBLUE ANALYTICS ENGINE</span>
+        <span>Asia/Karachi • PKT • HAMZA 6.0</span>
     </div>
 
     """, unsafe_allow_html=True)
