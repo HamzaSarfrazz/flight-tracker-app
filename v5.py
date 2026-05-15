@@ -786,18 +786,26 @@ def page_snapshot():
 
 def page_compare():
     db = load_db()
+
     if len(db) < 2:
         st.info("Need at least 2 snapshots to compare.")
         return
 
-    st.markdown('<div class="aero-label">// Comparison Matrix</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="aero-label">// Comparison Matrix</div>',
+        unsafe_allow_html=True
+    )
 
     opts = [f"[{i}] {r['snapshot_name']}" for i, r in enumerate(db)]
 
     col1, col2 = st.columns(2)
 
     with col1:
-        st.markdown('<div class="aero-label">BASELINE_SNAPSHOT</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="aero-label">BASELINE_SNAPSHOT</div>',
+            unsafe_allow_html=True
+        )
+
         idx_a = st.selectbox(
             "A",
             range(len(db)),
@@ -807,7 +815,11 @@ def page_compare():
         )
 
     with col2:
-        st.markdown('<div class="aero-label">CURRENT_SNAPSHOT</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="aero-label">CURRENT_SNAPSHOT</div>',
+            unsafe_allow_html=True
+        )
+
         idx_b = st.selectbox(
             "B",
             range(len(db)),
@@ -829,25 +841,100 @@ def page_compare():
         horizontal=True
     )
 
-    # ======================================================================
-    # OVERLAP MODE
-    # ======================================================================
+    # =====================================================================
+    # DATAFRAME STYLE
+    # =====================================================================
+
+    st.markdown("""
+    <style>
+
+    /* dataframe wrapper */
+    [data-testid="stDataFrame"] {
+        border: 1px solid #1e293b !important;
+        border-radius: 20px !important;
+        overflow: hidden !important;
+        background: #0b1220 !important;
+        box-shadow:
+            0 4px 18px rgba(0,0,0,0.25),
+            0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    /* toolbar */
+    [data-testid="stDataFrameToolbar"] {
+        background: #0f172a !important;
+        border-bottom: 1px solid #1e293b !important;
+    }
+
+    /* header */
+    [data-testid="stDataFrame"] thead tr th {
+        background: #111827 !important;
+        color: #94a3b8 !important;
+        font-size: 0.72rem !important;
+        font-weight: 700 !important;
+        border-bottom: 1px solid #1e293b !important;
+        letter-spacing: 0.05em;
+    }
+
+    /* body cells */
+    [data-testid="stDataFrame"] tbody tr td {
+        background: #0b1220 !important;
+        color: #e2e8f0 !important;
+        border-bottom: 1px solid #162033 !important;
+        font-size: 0.82rem !important;
+        font-weight: 500 !important;
+    }
+
+    /* hover */
+    [data-testid="stDataFrame"] tbody tr:hover td {
+        background: #111827 !important;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar {
+        height: 10px;
+        width: 10px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: #334155;
+        border-radius: 999px;
+    }
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    # =====================================================================
+    # OVERLAPPING DATE MODE
+    # =====================================================================
 
     if mode.startswith("By Date"):
 
-        overlap = sorted(set(prev["col_dates"]) & set(curr["col_dates"]))
+        overlap = sorted(
+            set(prev["col_dates"]) &
+            set(curr["col_dates"])
+        )
 
         if not overlap:
-            st.error("No overlapping dates — use Day Offset mode for WoW comparison.")
+            st.error(
+                "No overlapping dates — use Day Offset mode for WoW comparison."
+            )
             return
 
         prev_totals = [
-            sum(f["ticketed"] for f in prev["grid"].get(d, []) if f.get("ticketed"))
+            sum(
+                f["ticketed"]
+                for f in prev["grid"].get(d, [])
+                if f.get("ticketed")
+            )
             for d in overlap
         ]
 
         curr_totals = [
-            sum(f["ticketed"] for f in curr["grid"].get(d, []) if f.get("ticketed"))
+            sum(
+                f["ticketed"]
+                for f in curr["grid"].get(d, [])
+                if f.get("ticketed")
+            )
             for d in overlap
         ]
 
@@ -857,7 +944,11 @@ def page_compare():
             x=overlap,
             y=prev_totals,
             name="Baseline",
-            line=dict(color="#4a6080", width=2, dash="dot"),
+            line=dict(
+                color="#64748b",
+                width=2,
+                dash="dot"
+            ),
             marker=dict(size=4)
         ))
 
@@ -865,8 +956,11 @@ def page_compare():
             x=overlap,
             y=curr_totals,
             name="Current",
-            line=dict(color="#00e5ff", width=2),
-            marker=dict(size=5)
+            line=dict(
+                color="#00e5ff",
+                width=3
+            ),
+            marker=dict(size=6)
         ))
 
         fig.update_layout(
@@ -874,7 +968,14 @@ def page_compare():
             title="Daily Tickets — Overlap Period"
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
+
+        # ================================================================
+        # TABLE BUILD
+        # ================================================================
 
         flight_keys = set()
 
@@ -896,14 +997,18 @@ def page_compare():
             for d in overlap:
 
                 pe = next(
-                    (f for f in prev["grid"].get(d, [])
-                     if f["route"] == route and f["flt"] == flt),
+                    (
+                        f for f in prev["grid"].get(d, [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
                     None
                 )
 
                 ce = next(
-                    (f for f in curr["grid"].get(d, [])
-                     if f["route"] == route and f["flt"] == flt),
+                    (
+                        f for f in curr["grid"].get(d, [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
                     None
                 )
 
@@ -918,22 +1023,22 @@ def page_compare():
                 ftot += diff
 
                 if diff > 0:
-                    icon = "🟢"
+                    icon = "▲"
                 elif diff < 0:
-                    icon = "🔴"
+                    icon = "▼"
                 else:
-                    icon = "🔵"
+                    icon = "◆"
 
-                row[d[5:]] = f"{icon} {pt}→{ct} ({diff:+d})"
+                row[d[5:]] = f"{icon} {pt} → {ct} ({diff:+d})"
 
             grand_total += ftot
 
             if ftot > 0:
-                total_icon = "🟢"
+                total_icon = "▲"
             elif ftot < 0:
-                total_icon = "🔴"
+                total_icon = "▼"
             else:
-                total_icon = "🔵"
+                total_icon = "◆"
 
             row["TOTAL_Δ"] = f"{total_icon} {ftot:+d}"
 
@@ -942,54 +1047,84 @@ def page_compare():
         rows.append({
             "FLIGHT": "GRAND_TOTAL",
             **{d[5:]: "" for d in overlap},
-            "TOTAL_Δ": f"{'🟢' if grand_total > 0 else '🔴'} {grand_total:+d}"
+            "TOTAL_Δ": f"{'▲' if grand_total > 0 else '▼'} {grand_total:+d}"
         })
 
         compare_df = pd.DataFrame(rows)
 
-        def style_delta(val):
+        def color_compare(val):
+
             if isinstance(val, str):
 
-                if "🟢" in val:
-                    return "background-color: rgba(16,185,129,0.15); color: #065f46; font-weight: 600;"
+                if "▲" in val:
+                    return (
+                        "background-color: rgba(16,185,129,0.12);"
+                        "color: #4ade80;"
+                        "font-weight: 700;"
+                    )
 
-                elif "🔴" in val:
-                    return "background-color: rgba(239,68,68,0.15); color: #991b1b; font-weight: 600;"
+                elif "▼" in val:
+                    return (
+                        "background-color: rgba(239,68,68,0.12);"
+                        "color: #f87171;"
+                        "font-weight: 700;"
+                    )
 
-                elif "🔵" in val:
-                    return "background-color: rgba(37,99,235,0.12); color: #1d4ed8; font-weight: 600;"
+                elif "◆" in val:
+                    return (
+                        "background-color: rgba(59,130,246,0.10);"
+                        "color: #38bdf8;"
+                        "font-weight: 700;"
+                    )
 
             return ""
 
-        styled_df = compare_df.style.map(style_delta)
+        styled_df = compare_df.style.map(color_compare)
 
         st.dataframe(
             styled_df,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            height=620
         )
 
-        c1, c2 = st.columns(2)
+        c1, c2, c3 = st.columns(3)
 
         c1.metric(
             "NET_TICKETS_SOLD",
             f"{grand_total:+d}"
         )
 
-    # ======================================================================
+        c2.metric(
+            "BASELINE_TOTAL",
+            f"{sum(prev_totals):,}"
+        )
+
+        c3.metric(
+            "CURRENT_TOTAL",
+            f"{sum(curr_totals):,}"
+        )
+
+    # =====================================================================
     # WOW MODE
-    # ======================================================================
+    # =====================================================================
 
     else:
 
-        n_days = min(len(prev["col_dates"]), len(curr["col_dates"]))
+        n_days = min(
+            len(prev["col_dates"]),
+            len(curr["col_dates"])
+        )
 
         prev_dates = prev["col_dates"][:n_days]
         curr_dates = curr["col_dates"][:n_days]
 
         labels = []
 
-        dow_names = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN']
+        dow_names = [
+            'MON', 'TUE', 'WED',
+            'THU', 'FRI', 'SAT', 'SUN'
+        ]
 
         for i in range(n_days):
 
@@ -1002,14 +1137,20 @@ def page_compare():
                 labels.append(f"D{i+1}")
 
         prev_totals = [
-            sum(f["ticketed"] for f in prev["grid"].get(prev_dates[i], [])
-                if f.get("ticketed"))
+            sum(
+                f["ticketed"]
+                for f in prev["grid"].get(prev_dates[i], [])
+                if f.get("ticketed")
+            )
             for i in range(n_days)
         ]
 
         curr_totals = [
-            sum(f["ticketed"] for f in curr["grid"].get(curr_dates[i], [])
-                if f.get("ticketed"))
+            sum(
+                f["ticketed"]
+                for f in curr["grid"].get(curr_dates[i], [])
+                if f.get("ticketed")
+            )
             for i in range(n_days)
         ]
 
@@ -1019,8 +1160,7 @@ def page_compare():
             name="Baseline",
             x=labels,
             y=prev_totals,
-            marker_color="#4a6080",
-            marker_line_width=0,
+            marker_color="#475569",
             opacity=0.7
         ))
 
@@ -1029,8 +1169,7 @@ def page_compare():
             x=labels,
             y=curr_totals,
             marker_color="#00e5ff",
-            marker_line_width=0,
-            opacity=0.85
+            opacity=0.9
         ))
 
         fig.update_layout(
@@ -1039,7 +1178,10 @@ def page_compare():
             barmode="group"
         )
 
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(
+            fig,
+            use_container_width=True
+        )
 
         all_flights = set()
 
@@ -1066,14 +1208,18 @@ def page_compare():
             for i in range(n_days):
 
                 pe = next(
-                    (f for f in prev["grid"].get(prev_dates[i], [])
-                     if f["route"] == route and f["flt"] == flt),
+                    (
+                        f for f in prev["grid"].get(prev_dates[i], [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
                     None
                 )
 
                 ce = next(
-                    (f for f in curr["grid"].get(curr_dates[i], [])
-                     if f["route"] == route and f["flt"] == flt),
+                    (
+                        f for f in curr["grid"].get(curr_dates[i], [])
+                        if f["route"] == route and f["flt"] == flt
+                    ),
                     None
                 )
 
@@ -1092,22 +1238,22 @@ def page_compare():
                 ftot += diff
 
                 if diff > 0:
-                    icon = "🟢"
+                    icon = "▲"
                 elif diff < 0:
-                    icon = "🔴"
+                    icon = "▼"
                 else:
-                    icon = "🔵"
+                    icon = "◆"
 
-                row[labels[i]] = f"{icon} {pt}→{ct} ({diff:+d})"
+                row[labels[i]] = f"{icon} {pt} → {ct} ({diff:+d})"
 
             grand_total += ftot
 
             if ftot > 0:
-                total_icon = "🟢"
+                total_icon = "▲"
             elif ftot < 0:
-                total_icon = "🔴"
+                total_icon = "▼"
             else:
-                total_icon = "🔵"
+                total_icon = "◆"
 
             row["TOTAL_Δ"] = f"{total_icon} {ftot:+d}"
 
@@ -1116,32 +1262,18 @@ def page_compare():
         rows.append({
             "FLIGHT": "GRAND_TOTAL",
             **{l: "" for l in labels},
-            "TOTAL_Δ": f"{'🟢' if grand_total > 0 else '🔴'} {grand_total:+d}"
+            "TOTAL_Δ": f"{'▲' if grand_total > 0 else '▼'} {grand_total:+d}"
         })
 
         compare_df = pd.DataFrame(rows)
 
-        def style_delta(val):
-
-            if isinstance(val, str):
-
-                if "🟢" in val:
-                    return "background-color: rgba(16,185,129,0.15); color: #065f46; font-weight: 600;"
-
-                elif "🔴" in val:
-                    return "background-color: rgba(239,68,68,0.15); color: #991b1b; font-weight: 600;"
-
-                elif "🔵" in val:
-                    return "background-color: rgba(37,99,235,0.12); color: #1d4ed8; font-weight: 600;"
-
-            return ""
-
-        styled_df = compare_df.style.map(style_delta)
+        styled_df = compare_df.style.map(color_compare)
 
         st.dataframe(
             styled_df,
             use_container_width=True,
-            hide_index=True
+            hide_index=True,
+            height=620
         )
 
         st.metric(
