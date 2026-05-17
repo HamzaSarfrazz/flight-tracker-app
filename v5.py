@@ -308,7 +308,6 @@ def apply_aero_theme():
         --red-soft: #fee2e2;
     }
 
-    /* Base styles */
     html, body, [class*="css"], .stApp {
         background: var(--bg) !important;
         color: var(--text) !important;
@@ -318,31 +317,17 @@ def apply_aero_theme():
     .main .block-container {
         padding-top: 2rem;
         padding-bottom: 2rem;
-        position: relative;
-        z-index: 1;
     }
 
-    /* Enhanced glassmorphism */
-    .glassmorphism {
-        background: rgba(255, 255, 255, 0.7) !important;
-        backdrop-filter: blur(10px) !important;
-        border: 1px solid rgba(255, 255, 255, 0.2) !important;
-        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08) !important;
-    }
-
-    /* Enhanced sidebar */
     [data-testid="stSidebar"] {
         background: var(--sidebar) !important;
         border-right: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.8) !important;
-        backdrop-filter: blur(5px) !important;
     }
 
     [data-testid="stSidebar"] * {
         font-family: 'Inter', sans-serif !important;
     }
 
-    /* Enhanced header */
     .aero-header {
         display: flex;
         align-items: center;
@@ -350,8 +335,6 @@ def apply_aero_theme():
         margin-bottom: 28px;
         padding-bottom: 20px;
         border-bottom: 1px solid var(--border);
-        background: rgba(255, 255, 255, 0.6) !important;
-        backdrop-filter: blur(5px) !important;
     }
 
     .aero-wordmark {
@@ -359,7 +342,6 @@ def apply_aero_theme():
         font-weight: 800;
         letter-spacing: -0.05em;
         color: var(--text);
-        text-shadow: 0 2px 4px rgba(0,0,0,0.05);
     }
 
     .aero-wordmark span {
@@ -373,13 +355,6 @@ def apply_aero_theme():
         border-radius: 999px;
         font-size: 0.7rem;
         font-weight: 600;
-        transition: all 0.3s ease;
-        box-shadow: 0 2px 8px rgba(37,99,235,0.15);
-    }
-
-    .aero-badge:hover {
-        transform: scale(1.05);
-        box-shadow: 0 4px 12px rgba(37,99,235,0.25);
     }
 
     .aero-label {
@@ -391,7 +366,6 @@ def apply_aero_theme():
         text-transform: uppercase;
     }
 
-    /* Enhanced metric containers */
     [data-testid="metric-container"] {
         background: var(--card);
         border: 1px solid var(--border);
@@ -400,16 +374,6 @@ def apply_aero_theme():
         box-shadow:
             0 1px 2px rgba(0,0,0,0.04),
             0 8px 24px rgba(15,23,42,0.04);
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    [data-testid="metric-container"]:hover {
-        transform: translateY(-2px);
-        box-shadow:
-            0 4px 16px rgba(0,0,0,0.08),
-            0 12px 32px rgba(15,23,42,0.12);
     }
 
     [data-testid="stMetricLabel"] {
@@ -425,14 +389,8 @@ def apply_aero_theme():
         font-size: 2rem !important;
         font-weight: 800 !important;
         letter-spacing: -0.03em;
-        transition: all 0.3s ease;
     }
 
-    [data-testid="stMetricValue"]:hover {
-        letter-spacing: -0.02em;
-    }
-
-    /* Enhanced buttons */
     .stButton > button {
         width: 100%;
         border: none !important;
@@ -442,113 +400,46 @@ def apply_aero_theme():
         padding: 0.75rem 1rem !important;
         font-size: 0.85rem !important;
         font-weight: 700 !important;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-        box-shadow: 0 4px 12px rgba(37,99,235,0.2);
+        transition: all 0.2s ease;
     }
 
     .stButton > button:hover {
         background: var(--primary-hover) !important;
-        transform: translateY(-2px) scale(1.02);
-        box-shadow: 0 8px 20px rgba(37,99,235,0.3);
+        transform: translateY(-1px);
+        box-shadow: 0 8px 18px rgba(37,99,235,0.25);
     }
 
-    .stButton > button:active {
-        transform: translateY(0) scale(0.98);
-    }
-
-    .stButton > button::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: -100%;
-        width: 100%;
-        height: 100%;
-        background: linear-gradient(
-            90deg,
-            transparent,
-            rgba(255,255,255,0.2),
-            transparent
-        );
-        transition: all 0.6s;
-    }
-
-    .stButton > button:hover::before {
-        left: 100%;
-    }
-
-    /* Enhanced inputs */
     .stTextArea textarea,
     .stSelectbox select,
     .stTextInput input {
-        background: rgba(255, 255, 255, 0.8) !important;
+        background: white !important;
         border: 1px solid var(--border) !important;
         border-radius: 14px !important;
         color: var(--text) !important;
         font-size: 0.9rem !important;
-        backdrop-filter: blur(5px) !important;
-        transition: all 0.3s ease;
     }
 
-    .stTextArea textarea:focus,
-    .stSelectbox select:focus,
-    .stTextInput input:focus {
-        border-color: var(--primary) !important;
-        box-shadow: 0 0 0 3px rgba(37,99,235,0.2) !important;
-        background: white !important;
-    }
-
-    /* Enhanced tabs */
     .stTabs [data-baseweb="tab-list"] {
         gap: 8px;
         background: transparent !important;
         border-bottom: none !important;
-        padding: 4px;
     }
 
     .stTabs [data-baseweb="tab"] {
-        background: rgba(255, 255, 255, 0.6) !important;
+        background: white !important;
         border: 1px solid var(--border) !important;
         border-radius: 14px !important;
         padding: 10px 18px !important;
         color: var(--muted) !important;
         font-weight: 700 !important;
-        transition: all 0.3s ease;
-        position: relative;
-        overflow: hidden;
-    }
-
-    .stTabs [data-baseweb="tab"]:hover {
-        background: rgba(255, 255, 255, 0.8) !important;
-        transform: translateY(-2px);
     }
 
     .stTabs [aria-selected="true"] {
         background: var(--primary-soft) !important;
         border-color: var(--primary) !important;
         color: var(--primary) !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(37,99,235,0.15);
     }
 
-    .stTabs [aria-selected="true"]::before {
-        content: '';
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 3px;
-        background: var(--primary);
-        animation: slideUnder 0.3s ease-out;
-    }
-
-    @keyframes slideUnder {
-        from { width: 0; }
-        to { width: 100%; }
-    }
-
-    /* Enhanced tables */
     table {
         border-collapse: collapse !important;
         width: 100% !important;
@@ -556,7 +447,6 @@ def apply_aero_theme():
         border-radius: 18px !important;
         overflow: hidden !important;
         border: 1px solid var(--border) !important;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.05);
     }
 
     thead tr {
@@ -581,13 +471,11 @@ def apply_aero_theme():
 
     tr:hover td {
         background: #f8fbff !important;
-        transition: background-color 0.2s ease;
     }
 
-    /* Enhanced terminal blocks */
     .terminal-block {
-        background: rgba(255, 255, 255, 0.8) !important;
-        border: 1px solid var(--border) !important;
+        background: white;
+        border: 1px solid var(--border);
         border-radius: 18px;
         padding: 22px;
         line-height: 1.8;
@@ -595,15 +483,6 @@ def apply_aero_theme():
         box-shadow:
             0 1px 2px rgba(0,0,0,0.04),
             0 8px 24px rgba(15,23,42,0.04);
-        backdrop-filter: blur(5px) !important;
-        transition: all 0.3s ease;
-    }
-
-    .terminal-block:hover {
-        transform: translateY(-2px);
-        box-shadow:
-            0 4px 12px rgba(0,0,0,0.08),
-            0 12px 28px rgba(15,23,42,0.12);
     }
 
     .terminal-block .ts {
@@ -626,14 +505,12 @@ def apply_aero_theme():
         font-weight: 700;
     }
 
-    /* Enhanced pills */
     .pill {
         display: inline-block;
         padding: 5px 12px;
         border-radius: 999px;
         font-size: 0.72rem;
         font-weight: 700;
-        transition: all 0.2s ease;
     }
 
     .pill-green {
@@ -658,132 +535,25 @@ def apply_aero_theme():
 
     hr {
         border-color: var(--border) !important;
-        opacity: 0.5;
     }
 
-    /* Enhanced footer */
     .footer-bar {
         position: fixed;
         bottom: 0;
         left: 0;
         width: 100%;
-        background: rgba(255,255,255,0.8) !important;
-        backdrop-filter: blur(10px) !important;
-        border-top: 1px solid var(--border) !important;
+        background: rgba(255,255,255,0.92);
+        backdrop-filter: blur(10px);
+        border-top: 1px solid var(--border);
         padding: 8px 20px;
         display: flex;
         justify-content: space-between;
         font-size: 0.7rem;
         color: var(--muted);
         z-index: 999;
-        backdrop-filter: blur(10px) !important;
-        box-shadow: 0 -4px 16px rgba(0,0,0,0.05);
-    }
-
-    /* Flying BOD and BOE elements */
-    .flying-elements {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        pointer-events: none;
-        z-index: 998;
-        overflow: hidden;
-    }
-
-    .flying-element {
-        position: absolute;
-        width: 60px;
-        height: 60px;
-        opacity: 0.7;
-        filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
-        animation: fly linear infinite;
-    }
-
-    .flying-element.bod {
-        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%232563eb"><path d="M12 2l-2 6h-4l6 4-2 6 6-4 6 4-2-6 6-4h-4l-2-6zm-2 14.5v-3h-3v-2h3v-3h2v3h3v2h-3v3h-2z"/></svg>');
-        background-size: contain;
-        background-repeat: no-repeat;
-    }
-
-    .flying-element.boe {
-        background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ef4444"><path d="M12 2l-2 6h-4l6 4-2 6 6-4 6 4-2-6 6-4h-4l-2-6zm-2 14.5v-3h-3v-2h3v-3h2v3h3v2h-3v3h-2z"/></svg>');
-        background-size: contain;
-        background-repeat: no-repeat;
-    }
-
-    /* Flight paths */
-    @keyframes fly {
-        0% {
-            transform: translateX(-100px) translateY(-100px) rotate(0deg) scale(0.5);
-            opacity: 0;
-        }
-        10% {
-            opacity: 0.7;
-        }
-        90% {
-            opacity: 0.7;
-        }
-        100% {
-            transform: translateX(140vw) translateY(80vh) rotate(360deg) scale(1.2);
-            opacity: 0;
-        }
-    }
-
-    /* Different flight patterns */
-    .flying-element:nth-child(1) {
-        animation-duration: 15s;
-        animation-delay: 0s;
-        animation-timing-function: ease-in-out;
-    }
-
-    .flying-element:nth-child(2) {
-        animation-duration: 12s;
-        animation-delay: 3s;
-        animation-timing-function: ease-in-out;
-        transform: scale(0.8) rotate(15deg);
-    }
-
-    .flying-element:nth-child(3) {
-        animation-duration: 18s;
-        animation-delay: 6s;
-        animation-timing-function: ease-in-out;
-        transform: scale(0.6) rotate(-10deg);
-    }
-
-    .flying-element:nth-child(4) {
-        animation-duration: 20s;
-        animation-delay: 9s;
-        animation-timing-function: ease-in-out;
-        transform: scale(0.7) rotate(5deg);
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
-        .flying-element {
-            width: 40px;
-            height: 40px;
-        }
-
-        .flying-element.bod {
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%232563eb"><path d="M12 2l-2 6h-4l6 4-2 6 6-4 6 4-2-6 6-4h-4l-2-6zm-2 14.5v-3h-3v-2h3v-3h2v3h3v2h-3v3h-2z"/></svg>');
-        }
-
-        .flying-element.boe {
-            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23ef4444"><path d="M12 2l-2 6h-4l6 4-2 6 6-4 6 4-2-6 6-4h-4l-2-6zm-2 14.5v-3h-3v-2h3v-3h2v3h3v2h-3v3h-2z"/></svg>');
-        }
     }
 
     </style>
-
-    <!-- Flying elements container -->
-    <div class="flying-elements">
-        <div class="flying-element bod"></div>
-        <div class="flying-element boe"></div>
-        <div class="flying-element bod"></div>
-        <div class="flying-element boe"></div>
-    </div>
 
     <div class="footer-bar">
         <span>AirBlue_X // AIRBLUE ANALYTICS ENGINE</span>
