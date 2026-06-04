@@ -754,34 +754,56 @@ def page_snapshot():
         unsafe_allow_html=True
     )
 
-    # Daily totals bar chart
+    # Capacity vs Ticketed stacked bar chart
     st.divider()
-    st.markdown('<div class="aero-label">// Daily Totals</div>', unsafe_allow_html=True)
-    day_totals  = [sum(f["ticketed"] for f in grid[d] if f.get("ticketed")) for d in dates]
-    day_caps    = [sum(f["capacity"] for f in grid[d] if f.get("capacity")) for d in dates]
-    short_dates = [d[5:] for d in dates]
-    lfs         = [t/c*100 if c else 0 for t, c in zip(day_totals, day_caps)]
+    st.markdown('<div class="aero-label">// Flight Capacity — Ticketed vs Remaining Seats</div>', unsafe_allow_html=True)
 
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=short_dates, y=day_totals, name="Tickets",
-        marker_color="#00e5ff", marker_line_width=0,
-        opacity=0.85
+    # Aggregate per flight across all dates in this snapshot
+    flight_agg = {}
+    for d in dates:
+        for f in grid[d]:
+            key = f"PA {f['flt']} {f['route']}"
+            if key not in flight_agg:
+                flight_agg[key] = {"ticketed": 0, "capacity": 0}
+            if f.get("ticketed") and not f.get("departed"):
+                flight_agg[key]["ticketed"] += f["ticketed"]
+                flight_agg[key]["capacity"] += f.get("capacity") or 0
+
+    flight_agg = {k: v for k, v in flight_agg.items() if v["capacity"] > 0}
+
+    flt_labels  = list(flight_agg.keys())
+    flt_tick    = [flight_agg[k]["ticketed"] for k in flt_labels]
+    flt_cap     = [flight_agg[k]["capacity"] for k in flt_labels]
+    flt_remain  = [max(0, c - t) for t, c in zip(flt_tick, flt_cap)]
+    flt_lf      = [round(t / c * 100, 1) if c else 0 for t, c in zip(flt_tick, flt_cap)]
+
+    fig2 = go.Figure()
+    fig2.add_trace(go.Bar(
+        name="Ticketed",
+        x=flt_labels,
+        y=flt_tick,
+        marker_color="#378ADD",
+        marker_line_width=0,
+        customdata=flt_lf,
+        hovertemplate="<b>%{x}</b><br>Ticketed: %{y}<br>Load Factor: %{customdata}%<extra></extra>"
     ))
-    fig.add_trace(go.Scatter(
-        x=short_dates, y=lfs, name="Load %",
-        yaxis="y2", mode="lines+markers",
-        line=dict(color="#f59e0b", width=2),
-        marker=dict(size=5, color="#f59e0b")
+    fig2.add_trace(go.Bar(
+        name="Remaining",
+        x=flt_labels,
+        y=flt_remain,
+        marker_color="#D3D1C7",
+        marker_line_width=0,
+        hovertemplate="<b>%{x}</b><br>Remaining: %{y}<extra></extra>"
     ))
-    fig.update_layout(
+    fig2.update_layout(
         **PLOTLY_LAYOUT,
-        title="Daily Tickets & Load Factor",
-        yaxis2=dict(title="Load %", overlaying="y", side="right",
-                    range=[0, 110], gridcolor="rgba(0,0,0,0)"),
-        barmode="group"
+        barmode="stack",
+        title="Ticketed vs Remaining Seats (aggregated across snapshot dates)",
+        xaxis_title="Flight",
+        yaxis_title="Seats",
     )
-    st.plotly_chart(fig, use_container_width=True)
+    fig2.update_xaxes(tickangle=-45)
+    st.plotly_chart(fig2, use_container_width=True)
 
 
 def page_compare():
