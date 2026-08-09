@@ -806,6 +806,97 @@ def page_snapshot():
     st.plotly_chart(fig2, use_container_width=True)
 
 
+def render_seat_load_table(curr):
+    """Per-date seat load / remaining-seats table for the current (dropdown B)
+    snapshot. Sold = reserved, Remaining = capacity - reserved, per the
+    Y:ticketed-reserved-capacity-flag format used by the parser."""
+    st.divider()
+    st.markdown('<div class="aero-label">// Seat Load — Current Snapshot</div>', unsafe_allow_html=True)
+
+    dates = curr["col_dates"]
+    grid  = curr["grid"]
+
+    flight_keys = []
+    for d in dates:
+        for f in grid.get(d, []):
+            key = (f["route"], f["flt"])
+            if key not in flight_keys:
+                flight_keys.append(key)
+
+    if not flight_keys:
+        st.info("No flight data in the current snapshot.")
+        return
+
+    rows = []
+    grand_sold = grand_capacity = grand_remaining = 0
+
+    for route, flt in sorted(flight_keys):
+        sold_row   = {"FLIGHT": f"PA {flt} {route}", "METRIC": "Sold / Load"}
+        remain_row = {"FLIGHT": "",                   "METRIC": "Remaining"}
+        total_sold = total_remaining = 0
+        any_data = False
+
+        for d in dates:
+            entry = next((f for f in grid.get(d, [])
+                          if f["route"] == route and f["flt"] == flt), None)
+            col = d[5:]
+
+            if not entry or entry.get("reserved") is None:
+                sold_row[col] = "—"
+                remain_row[col] = "—"
+                continue
+            if entry.get("departed"):
+                sold_row[col] = "✈ DEP"
+                remain_row[col] = "✈ DEP"
+                continue
+
+            reserved = entry.get("reserved") or 0
+            capacity = entry.get("capacity") or 0
+            any_data = True
+            total_sold += reserved
+
+            if capacity <= 0:
+                sold_row[col] = f"{reserved}"
+                remain_row[col] = "—"
+                continue
+
+            remaining = max(0, capacity - reserved)
+            pct  = reserved / capacity * 100
+            pill = "green" if pct >= 91 else "amber" if pct >= 76 else "red"
+            sold_row[col]   = f'<span class="pill pill-{pill}">{reserved}/{capacity} {pct:.0f}%</span>'
+            remain_row[col] = f"{remaining}"
+            total_remaining += remaining
+            grand_capacity  += capacity
+
+        if not any_data:
+            continue
+
+        sold_row["TOTAL"]   = f"{total_sold}"
+        remain_row["TOTAL"] = f"{total_remaining}"
+        rows.append(sold_row)
+        rows.append(remain_row)
+        grand_sold      += total_sold
+        grand_remaining += total_remaining
+
+    if not rows:
+        st.info("No seat-load data available for the current snapshot.")
+        return
+
+    overall_lf = (grand_sold / grand_capacity * 100) if grand_capacity else 0
+
+    m1, m2, m3, m4 = st.columns(4)
+    m1.metric("TOTAL_SOLD",      f"{grand_sold:,}")
+    m2.metric("TOTAL_REMAINING", f"{grand_remaining:,}")
+    m3.metric("TOTAL_CAPACITY",  f"{grand_capacity:,}")
+    m4.metric("LOAD_FACTOR",     f"{overall_lf:.1f}%")
+
+    df = pd.DataFrame(rows)
+    st.markdown(
+        '<div style="overflow-x:auto">' + df.to_html(escape=False, index=False) + '</div>',
+        unsafe_allow_html=True
+    )
+
+
 def page_compare():
     db = load_db()
 
@@ -1302,6 +1393,11 @@ def page_compare():
             "NET_TICKETS_WoW",
             f"{grand_total:+d}"
         )
+
+    # =====================================================================
+    # SEAT LOAD TABLE — runs regardless of which comparison mode is active
+    # =====================================================================
+    render_seat_load_table(curr)
 
 
 def page_booking_curve():
