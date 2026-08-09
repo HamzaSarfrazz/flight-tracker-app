@@ -806,19 +806,23 @@ def page_snapshot():
     st.plotly_chart(fig2, use_container_width=True)
 
 
-def render_seat_load_table(curr):
-    """Per-date seat load / remaining-seats table for the current (dropdown B)
-    snapshot. Sold = reserved, Remaining = capacity - reserved, per the
-    Y:ticketed-reserved-capacity-flag format used by the parser."""
+def render_seat_load_table(prev, curr):
+    """Per-date seat-sale / raw-load table, styled after the target layout:
+    Row 1 = sale of seats (reserved(current) - reserved(baseline)) per date.
+    Row 2 = raw ticketed-reserved-capacity-flag string from the current
+    snapshot, as-is, for reference. Trailing TOTAL column carries the
+    row's aggregate with a text label ("Total seats" / "Remaining seats"),
+    matching the target table."""
     st.divider()
-    st.markdown('<div class="aero-label">// Seat Load — Current Snapshot</div>', unsafe_allow_html=True)
+    st.markdown('<div class="aero-label">// Seat Load — Sale of Seats & Remaining</div>', unsafe_allow_html=True)
 
-    dates = curr["col_dates"]
-    grid  = curr["grid"]
+    dates      = curr["col_dates"]
+    grid_curr  = curr["grid"]
+    grid_prev  = prev["grid"]
 
     flight_keys = []
     for d in dates:
-        for f in grid.get(d, []):
+        for f in grid_curr.get(d, []):
             key = (f["route"], f["flt"])
             if key not in flight_keys:
                 flight_keys.append(key)
@@ -827,65 +831,75 @@ def render_seat_load_table(curr):
         st.info("No flight data in the current snapshot.")
         return
 
+    def _col_label(d):
+        dt = date.fromisoformat(d)
+        return f"{dt.day} {dt.strftime('%b')}"
+
     rows = []
-    grand_sold = grand_capacity = grand_remaining = 0
+    grand_sale = grand_remaining = grand_capacity = grand_reserved = 0
 
     for route, flt in sorted(flight_keys):
-        sold_row   = {"FLIGHT": f"PA {flt} {route}", "METRIC": "Sold / Load"}
-        remain_row = {"FLIGHT": "",                   "METRIC": "Remaining"}
-        total_sold = total_remaining = 0
+        sale_row = {"FLIGHT": f"PA {flt} {route}", "METRIC": "Sale of Seats"}
+        raw_row  = {"FLIGHT": "",                   "METRIC": "Load/Remaining seats"}
+        total_sale = total_remaining = 0
         any_data = False
 
         for d in dates:
-            entry = next((f for f in grid.get(d, [])
-                          if f["route"] == route and f["flt"] == flt), None)
-            col = d[5:]
+            col = _col_label(d)
+            ce = next((f for f in grid_curr.get(d, [])
+                       if f["route"] == route and f["flt"] == flt), None)
+            pe = next((f for f in grid_prev.get(d, [])
+                       if f["route"] == route and f["flt"] == flt), None)
 
-            if not entry or entry.get("reserved") is None:
-                sold_row[col] = "—"
-                remain_row[col] = "—"
+            if not ce or ce.get("reserved") is None:
+                sale_row[col] = "—"
+                raw_row[col]  = "—"
                 continue
-            if entry.get("departed"):
-                sold_row[col] = "✈ DEP"
-                remain_row[col] = "✈ DEP"
-                continue
-
-            reserved = entry.get("reserved") or 0
-            capacity = entry.get("capacity") or 0
-            any_data = True
-            total_sold += reserved
-
-            if capacity <= 0:
-                sold_row[col] = f"{reserved}"
-                remain_row[col] = "—"
+            if ce.get("departed"):
+                sale_row[col] = "✈ DEP"
+                raw_row[col]  = "✈ DEP"
                 continue
 
-            remaining = max(0, capacity - reserved)
-            pct  = reserved / capacity * 100
-            pill = "green" if pct >= 91 else "amber" if pct >= 76 else "red"
-            sold_row[col]   = f'<span class="pill pill-{pill}">{reserved}/{capacity} {pct:.0f}%</span>'
-            remain_row[col] = f"{remaining}"
-            total_remaining += remaining
-            grand_capacity  += capacity
+            reserved_c = ce.get("reserved") or 0
+            capacity_c = ce.get("capacity") or 0
+            ticketed_c = ce.get("ticketed")
+            ticketed_disp = ticketed_c if ticketed_c is not None else 0
+
+            raw_row[col] = f"{ticketed_disp}-{reserved_c}-{capacity_c}-0"
+
+            if pe and pe.get("reserved") is not None and not pe.get("departed"):
+                reserved_p = pe.get("reserved") or 0
+                diff = reserved_c - reserved_p
+                sale_row[col] = f"{diff:+d}"
+                total_sale += diff
+                any_data = True
+            else:
+                sale_row[col] = "—"
+
+            if capacity_c > 0:
+                remaining = max(0, capacity_c - reserved_c)
+                total_remaining += remaining
+                grand_capacity  += capacity_c
+                grand_reserved  += reserved_c
 
         if not any_data:
             continue
 
-        sold_row["TOTAL"]   = f"{total_sold}"
-        remain_row["TOTAL"] = f"{total_remaining}"
-        rows.append(sold_row)
-        rows.append(remain_row)
-        grand_sold      += total_sold
+        sale_row["TOTAL"] = f"{total_sale}  Total seats"
+        raw_row["TOTAL"]  = f"{total_remaining}  Remaining seats"
+        rows.append(sale_row)
+        rows.append(raw_row)
+        grand_sale      += total_sale
         grand_remaining += total_remaining
 
     if not rows:
-        st.info("No seat-load data available for the current snapshot.")
+        st.info("No seat-load data available — check the baseline snapshot covers matching dates.")
         return
 
-    overall_lf = (grand_sold / grand_capacity * 100) if grand_capacity else 0
+    overall_lf = (grand_reserved / grand_capacity * 100) if grand_capacity else 0
 
     m1, m2, m3, m4 = st.columns(4)
-    m1.metric("TOTAL_SOLD",      f"{grand_sold:,}")
+    m1.metric("NET_SEATS_SOLD",  f"{grand_sale:+,d}")
     m2.metric("TOTAL_REMAINING", f"{grand_remaining:,}")
     m3.metric("TOTAL_CAPACITY",  f"{grand_capacity:,}")
     m4.metric("LOAD_FACTOR",     f"{overall_lf:.1f}%")
@@ -1397,7 +1411,7 @@ def page_compare():
     # =====================================================================
     # SEAT LOAD TABLE — runs regardless of which comparison mode is active
     # =====================================================================
-    render_seat_load_table(curr)
+    render_seat_load_table(prev, curr)
 
 
 def page_booking_curve():
