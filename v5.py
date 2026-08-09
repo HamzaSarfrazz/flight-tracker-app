@@ -816,9 +816,13 @@ def render_seat_load_table(prev, curr):
     st.divider()
     st.markdown('<div class="aero-label">// Seat Load — Sale of Seats & Remaining</div>', unsafe_allow_html=True)
 
-    dates      = curr["col_dates"]
+    dates      = sorted(set(prev["col_dates"]) & set(curr["col_dates"]))
     grid_curr  = curr["grid"]
     grid_prev  = prev["grid"]
+
+    if not dates:
+        st.info("No overlapping dates between the baseline and current snapshot.")
+        return
 
     flight_keys = []
     for d in dates:
@@ -828,7 +832,7 @@ def render_seat_load_table(prev, curr):
                 flight_keys.append(key)
 
     if not flight_keys:
-        st.info("No flight data in the current snapshot.")
+        st.info("No flight data in the overlapping date range.")
         return
 
     def _col_label(d):
