@@ -263,16 +263,42 @@ def load_db() -> List[Dict]:
         st.error(f"DATABASE_LINK_FAILED: {e}")
         return []
 
-def save_db(records: List[Dict]):
+def insert_snapshot(record: Dict) -> bool:
+    """Insert exactly one new snapshot row. Never touches existing rows —
+    this is the only path used when importing new data, so a failed or
+    interrupted call can never wipe prior history."""
+    try:
+        sb      = _get_supabase()
+        payload = {k: v for k, v in record.items() if k != "_id"}
+        sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"WRITE_FAULT: {e}")
+        return False
+
+def delete_snapshot(record_id) -> bool:
+    """Delete exactly one snapshot row by its Supabase id."""
+    try:
+        sb = _get_supabase()
+        sb.table("snapshots").delete().eq("id", record_id).execute()
+        st.cache_data.clear()
+        return True
+    except Exception as e:
+        st.error(f"WRITE_FAULT: {e}")
+        return False
+
+def purge_all_snapshots() -> bool:
+    """Delete every snapshot row. Only ever called from an explicit,
+    user-confirmed PURGE action — never from the normal save path."""
     try:
         sb = _get_supabase()
         sb.table("snapshots").delete().neq("id", 0).execute()
-        for rec in records:
-            payload = {k: v for k, v in rec.items() if k != "_id"}
-            sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
         st.cache_data.clear()
+        return True
     except Exception as e:
         st.error(f"WRITE_FAULT: {e}")
+        return False
 
 # ============================================================================
 # AERO-X 2080 Theme
@@ -679,9 +705,8 @@ def page_import():
             "col_dates":     col_dates,
             "grid":          grid,
         }
-        db = load_db()
-        db.append(record)
-        save_db(db)
+        if not insert_snapshot(record):
+            return
 
         st.markdown(f"""
         <div class="terminal-block">
@@ -1561,14 +1586,14 @@ def page_history():
     if st.session_state.get("confirm_delete"):
         st.warning("Confirm deletion of the most recent snapshot?")
         if st.button("✅ CONFIRM_DELETE"):
-            db.pop(); save_db(db)
+            delete_snapshot(db[-1]["_id"])
             st.session_state["confirm_delete"] = False
             st.rerun()
 
     if st.session_state.get("confirm_clear"):
         st.error("IRREVERSIBLE — delete ALL snapshots?")
         if st.button("✅ CONFIRM_PURGE"):
-            save_db([])
+            purge_all_snapshots()
             st.session_state["confirm_clear"] = False
             st.rerun()
 
