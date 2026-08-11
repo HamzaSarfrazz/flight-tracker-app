@@ -808,11 +808,16 @@ def page_snapshot():
 
 def render_seat_load_table(prev, curr):
     """Per-date seat-sale / raw-load table, styled after the target layout:
-    Row 1 = sale of seats (reserved(current) - reserved(baseline)) per date.
+    Row 1 = sale of seats (ticketed(current) - ticketed(baseline)) per date.
     Row 2 = raw ticketed-reserved-capacity-flag string from the current
     snapshot, as-is, for reference. Trailing TOTAL column carries the
     row's aggregate with a text label ("Total seats" / "Remaining seats"),
-    matching the target table."""
+    matching the target table.
+
+    Load basis is TICKETED (not reserved) — remaining = capacity - ticketed,
+    and the daily sale figure is the ticketed delta between snapshots.
+    Entries with revenue_k == 0 are treated as cancelled flights and are
+    excluded entirely from both rows and all totals."""
     st.divider()
     st.markdown('<div class="aero-label">// Seat Load — Sale of Seats & Remaining</div>', unsafe_allow_html=True)
 
@@ -839,8 +844,11 @@ def render_seat_load_table(prev, curr):
         dt = date.fromisoformat(d)
         return f"{dt.day} {dt.strftime('%b')}"
 
+    def _is_cancelled(entry):
+        return (entry.get("revenue_k") or 0) == 0
+
     rows = []
-    grand_sale = grand_remaining = grand_capacity = grand_reserved = 0
+    grand_sale = grand_remaining = grand_capacity = grand_ticketed = 0
 
     for route, flt in sorted(flight_keys):
         sale_row = {"FLIGHT": f"PA {flt} {route}", "METRIC": "Sale of Seats"}
@@ -855,7 +863,7 @@ def render_seat_load_table(prev, curr):
             pe = next((f for f in grid_prev.get(d, [])
                        if f["route"] == route and f["flt"] == flt), None)
 
-            if not ce or ce.get("reserved") is None:
+            if not ce or ce.get("ticketed") is None:
                 sale_row[col] = "—"
                 raw_row[col]  = "—"
                 continue
@@ -863,17 +871,21 @@ def render_seat_load_table(prev, curr):
                 sale_row[col] = "✈ DEP"
                 raw_row[col]  = "✈ DEP"
                 continue
+            if _is_cancelled(ce):
+                sale_row[col] = "✕ CNCL"
+                raw_row[col]  = "✕ CNCL"
+                continue
 
             reserved_c = ce.get("reserved") or 0
             capacity_c = ce.get("capacity") or 0
-            ticketed_c = ce.get("ticketed")
-            ticketed_disp = ticketed_c if ticketed_c is not None else 0
+            ticketed_c = ce.get("ticketed") or 0
 
-            raw_row[col] = f"{ticketed_disp}-{reserved_c}-{capacity_c}-0"
+            raw_row[col] = f"{ticketed_c}-{reserved_c}-{capacity_c}-0"
 
-            if pe and pe.get("reserved") is not None and not pe.get("departed"):
-                reserved_p = pe.get("reserved") or 0
-                diff = reserved_c - reserved_p
+            if (pe and pe.get("ticketed") is not None
+                    and not pe.get("departed") and not _is_cancelled(pe)):
+                ticketed_p = pe.get("ticketed") or 0
+                diff = ticketed_c - ticketed_p
                 sale_row[col] = f"{diff:+d}"
                 total_sale += diff
                 any_data = True
@@ -881,10 +893,10 @@ def render_seat_load_table(prev, curr):
                 sale_row[col] = "—"
 
             if capacity_c > 0:
-                remaining = max(0, capacity_c - reserved_c)
+                remaining = max(0, capacity_c - ticketed_c)
                 total_remaining += remaining
                 grand_capacity  += capacity_c
-                grand_reserved  += reserved_c
+                grand_ticketed  += ticketed_c
 
         if not any_data:
             continue
@@ -900,7 +912,7 @@ def render_seat_load_table(prev, curr):
         st.info("No seat-load data available — check the baseline snapshot covers matching dates.")
         return
 
-    overall_lf = (grand_reserved / grand_capacity * 100) if grand_capacity else 0
+    overall_lf = (grand_ticketed / grand_capacity * 100) if grand_capacity else 0
 
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("NET_SEATS_SOLD",  f"{grand_sale:+,d}")
