@@ -266,11 +266,47 @@ def load_db() -> List[Dict]:
 def insert_snapshot(record: Dict) -> bool:
     """Insert exactly one new snapshot row. Never touches existing rows —
     this is the only path used when importing new data, so a failed or
-    interrupted call can never wipe prior history."""
+    interrupted call can never wipe prior history.
+
+    Verifies the insert actually persisted rather than trusting a call
+    that didn't raise — some Supabase RLS configurations let an INSERT
+    return successfully (no exception) without the row actually being
+    written or returned, which otherwise fails silently."""
     try:
-        sb      = _get_supabase()
-        payload = {k: v for k, v in record.items() if k != "_id"}
-        sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
+        sb       = _get_supabase()
+        payload  = {k: v for k, v in record.items() if k != "_id"}
+        response = sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
+
+        err = getattr(response, "error", None)
+        if err:
+            st.error(f"WRITE_FAULT: {err}")
+            return False
+
+        returned = getattr(response, "data", None) or []
+        if not returned:
+            st.error(
+                "WRITE_FAULT: insert returned no data — the row was likely "
+                "NOT saved. This usually means a Supabase Row-Level-Security "
+                "policy on the `snapshots` table is blocking INSERT (or "
+                "blocking the SELECT-back after insert) for the key this app "
+                "uses. Check Supabase → Authentication → Policies for the "
+                "`snapshots` table."
+            )
+            return False
+
+        new_id = returned[0].get("id")
+
+        # Re-fetch directly (bypassing the cache) to confirm the row is
+        # actually queryable — catches cases where the insert response
+        # looked fine but a policy silently hides it from subsequent reads.
+        check = sb.table("snapshots").select("id").eq("id", new_id).execute()
+        if not (getattr(check, "data", None) or []):
+            st.error(
+                "WRITE_FAULT: row was inserted but is not visible on "
+                "read-back — check SELECT policies on the `snapshots` table."
+            )
+            return False
+
         st.cache_data.clear()
         return True
     except Exception as e:
