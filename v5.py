@@ -263,78 +263,16 @@ def load_db() -> List[Dict]:
         st.error(f"DATABASE_LINK_FAILED: {e}")
         return []
 
-def insert_snapshot(record: Dict) -> bool:
-    """Insert exactly one new snapshot row. Never touches existing rows —
-    this is the only path used when importing new data, so a failed or
-    interrupted call can never wipe prior history.
-
-    Verifies the insert actually persisted rather than trusting a call
-    that didn't raise — some Supabase RLS configurations let an INSERT
-    return successfully (no exception) without the row actually being
-    written or returned, which otherwise fails silently."""
-    try:
-        sb       = _get_supabase()
-        payload  = {k: v for k, v in record.items() if k != "_id"}
-        response = sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
-
-        err = getattr(response, "error", None)
-        if err:
-            st.error(f"WRITE_FAULT: {err}")
-            return False
-
-        returned = getattr(response, "data", None) or []
-        if not returned:
-            st.error(
-                "WRITE_FAULT: insert returned no data — the row was likely "
-                "NOT saved. This usually means a Supabase Row-Level-Security "
-                "policy on the `snapshots` table is blocking INSERT (or "
-                "blocking the SELECT-back after insert) for the key this app "
-                "uses. Check Supabase → Authentication → Policies for the "
-                "`snapshots` table."
-            )
-            return False
-
-        new_id = returned[0].get("id")
-
-        # Re-fetch directly (bypassing the cache) to confirm the row is
-        # actually queryable — catches cases where the insert response
-        # looked fine but a policy silently hides it from subsequent reads.
-        check = sb.table("snapshots").select("id").eq("id", new_id).execute()
-        if not (getattr(check, "data", None) or []):
-            st.error(
-                "WRITE_FAULT: row was inserted but is not visible on "
-                "read-back — check SELECT policies on the `snapshots` table."
-            )
-            return False
-
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        st.error(f"WRITE_FAULT: {e}")
-        return False
-
-def delete_snapshot(record_id) -> bool:
-    """Delete exactly one snapshot row by its Supabase id."""
-    try:
-        sb = _get_supabase()
-        sb.table("snapshots").delete().eq("id", record_id).execute()
-        st.cache_data.clear()
-        return True
-    except Exception as e:
-        st.error(f"WRITE_FAULT: {e}")
-        return False
-
-def purge_all_snapshots() -> bool:
-    """Delete every snapshot row. Only ever called from an explicit,
-    user-confirmed PURGE action — never from the normal save path."""
+def save_db(records: List[Dict]):
     try:
         sb = _get_supabase()
         sb.table("snapshots").delete().neq("id", 0).execute()
+        for rec in records:
+            payload = {k: v for k, v in rec.items() if k != "_id"}
+            sb.table("snapshots").insert({"payload": json.dumps(payload)}).execute()
         st.cache_data.clear()
-        return True
     except Exception as e:
         st.error(f"WRITE_FAULT: {e}")
-        return False
 
 # ============================================================================
 # AERO-X 2080 Theme
@@ -741,8 +679,9 @@ def page_import():
             "col_dates":     col_dates,
             "grid":          grid,
         }
-        if not insert_snapshot(record):
-            return
+        db = load_db()
+        db.append(record)
+        save_db(db)
 
         st.markdown(f"""
         <div class="terminal-block">
@@ -1622,14 +1561,14 @@ def page_history():
     if st.session_state.get("confirm_delete"):
         st.warning("Confirm deletion of the most recent snapshot?")
         if st.button("✅ CONFIRM_DELETE"):
-            delete_snapshot(db[-1]["_id"])
+            db.pop(); save_db(db)
             st.session_state["confirm_delete"] = False
             st.rerun()
 
     if st.session_state.get("confirm_clear"):
         st.error("IRREVERSIBLE — delete ALL snapshots?")
         if st.button("✅ CONFIRM_PURGE"):
-            purge_all_snapshots()
+            save_db([])
             st.session_state["confirm_clear"] = False
             st.rerun()
 
